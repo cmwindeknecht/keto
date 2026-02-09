@@ -3,10 +3,13 @@
 ## ✅ Completed
 - Project structure setup
 - Docker Compose base config
-
-## 🚧 In Progress
 - FastAPI Skeleton
 - Steam API integration
+
+## 🚧 In Progress
+- Add DB Models for FastAPI
+- Expand Services for FastAPI
+- Add Business Logic for FastAPI
 
 ## 📋 Next Up
 - Supabase Postgres setup, data models
