@@ -27,7 +27,7 @@ class AbridgedFoodNutrient(BaseModel):
     - GET/POST /v1/foods/search (in SearchResultFood items)
     """
 
-    number: int | None = None
+    number: str | int | float | None = None
     name: str | None = None
     amount: float | None = None
     unit_name: str | None = Field(None, alias="unitName")

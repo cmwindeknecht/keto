@@ -58,8 +58,10 @@ class USDAService:
                 response = await client.get(url, params=params)
                 response.raise_for_status()
                 return response.json()
+        except httpx.HTTPStatusError as e:
+            raise USDAAPIError(f"USDA API error: {str(e)}", status_code=e.response.status_code)
         except httpx.HTTPError as e:
-            raise USDAAPIError(f"USDA API single food detail error: {str(e)}")
+            raise USDAAPIError(f"USDA API error: {str(e)}")
 
     async def search_multi_detail(
         self, criteria: FoodsCriteria
@@ -90,8 +92,10 @@ class USDAService:
                 )
                 response.raise_for_status()
                 return response.json()
+        except httpx.HTTPStatusError as e:
+            raise USDAAPIError(f"USDA API error: {str(e)}", status_code=e.response.status_code)
         except httpx.HTTPError as e:
-            raise USDAAPIError(f"USDA API multi-food detail error: {str(e)}")
+            raise USDAAPIError(f"USDA API error: {str(e)}")
 
     async def list_all_foods(self, criteria: FoodListCriteria | None = None) -> list[AbridgedFoodItem]:
         """
@@ -124,8 +128,10 @@ class USDAService:
 
                 response.raise_for_status()
                 return response.json()
+        except httpx.HTTPStatusError as e:
+            raise USDAAPIError(f"USDA API error: {str(e)}", status_code=e.response.status_code)
         except httpx.HTTPError as e:
-            raise USDAAPIError(f"USDA API list foods error: {str(e)}")
+            raise USDAAPIError(f"USDA API error: {str(e)}")
 
     async def search(self, criteria: FoodSearchCriteria | None = None, query: str | None = None) -> SearchResult:
         """
@@ -167,8 +173,10 @@ class USDAService:
 
                 response.raise_for_status()
                 return response.json()
+        except httpx.HTTPStatusError as e:
+            raise USDAAPIError(f"USDA API error: {str(e)}", status_code=e.response.status_code)
         except httpx.HTTPError as e:
-            raise USDAAPIError(f"USDA API search error: {str(e)}")
+            raise USDAAPIError(f"USDA API error: {str(e)}")
 
     async def search_ingredients(self, query: str, limit: int = 20) -> list[dict]:
         """
@@ -201,8 +209,10 @@ class USDAService:
                 response.raise_for_status()
                 data = response.json()
                 return data.get("foods", [])
+        except httpx.HTTPStatusError as e:
+            raise USDAAPIError(f"USDA API error: {str(e)}", status_code=e.response.status_code)
         except httpx.HTTPError as e:
-            raise USDAAPIError(f"USDA API search error: {str(e)}")
+            raise USDAAPIError(f"USDA API error: {str(e)}")
 
     async def get_ingredient_details(self, fdc_id: str) -> dict:
         """
@@ -229,8 +239,10 @@ class USDAService:
                 )
                 response.raise_for_status()
                 return response.json()
+        except httpx.HTTPStatusError as e:
+            raise USDAAPIError(f"USDA API error: {str(e)}", status_code=e.response.status_code)
         except httpx.HTTPError as e:
-            raise USDAAPIError(f"USDA API detail error: {str(e)}")
+            raise USDAAPIError(f"USDA API error: {str(e)}")
 
 
 usda_service = USDAService()

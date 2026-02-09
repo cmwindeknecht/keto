@@ -18,19 +18,9 @@ class IngredientNotFoundError(HTTPException):
 class USDAAPIError(HTTPException):
     """Raised when USDA FoodData Central API returns an error."""
 
-    def __init__(self, detail: str = "Error communicating with USDA API"):
-        # Try to extract HTTP status code from error message
-        # e.g., "Client error '404 '" or "Client error '403 Forbidden'"
-        status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-
-        if "404" in detail:
-            status_code = status.HTTP_404_NOT_FOUND
-        elif "403" in detail:
-            status_code = status.HTTP_403_FORBIDDEN
-        elif "401" in detail:
-            status_code = status.HTTP_401_UNAUTHORIZED
-        elif "400" in detail:
-            status_code = status.HTTP_400_BAD_REQUEST
+    def __init__(self, detail: str = "Error communicating with USDA API", status_code: int = None):
+        if status_code is None:
+            status_code = status.HTTP_503_SERVICE_UNAVAILABLE
 
         super().__init__(status_code=status_code, detail=detail)
 
