@@ -28,6 +28,7 @@ How Claude Code should interact with this project.
 - Be concise and direct
 - Flag any security concerns immediately
 - Ask before committing significant changes
+- **Call out incorrect assumptions directly.** If the user says something patently incorrect (file doesn't exist, requirement already done, etc.), state it plainly rather than pretending to verify. No need to run checks that will obviously fail.
 
 ## Working with Comments & Documentation
 

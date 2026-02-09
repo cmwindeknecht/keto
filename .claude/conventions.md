@@ -7,6 +7,8 @@
 - Use `async/await` for all endpoints
 - Error handling: raise HTTPException with proper status codes
 - Prefer explicit properties/attributes with type hints (e.g., `self.engine: AsyncEngine | None = None`)
+- **When defining `@property` decorators, always include corresponding `@property_name.setter` methods** to allow assignment
+- Async generator functions must return `AsyncGenerator[YieldType, None]` not just the yield type
 
 ## Go
 - Follow standard Go formatting (gofmt)
@@ -21,6 +23,4 @@
 - Tailwind CSS for styling
 
 ## General
-- Commit messages: "feat:", "fix:", "docs:", etc.
-- Branch naming: feature/description, fix/description
 - Write tests for business logic (aim for >90% coverage)
