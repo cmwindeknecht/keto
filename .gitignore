@@ -144,3 +144,6 @@ datadog.conf
 
 # Argo
 argocd-config.yaml
+
+# Docker local overrides
+docker-compose.override.yml
