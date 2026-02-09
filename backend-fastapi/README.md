@@ -1,6 +1,6 @@
-# Steam Analytics FastAPI Backend
+# Keto Recipe API - FastAPI Backend
 
-FastAPI service for the Steam Analytics platform. Handles Steam API integration, data processing, and internal API endpoints.
+FastAPI service for the Keto Recipe platform. Handles USDA FoodData Central API integration, recipe management, nutrition calculation, and internal API endpoints.
 
 ## Architecture
 
@@ -59,8 +59,8 @@ The API will be available at `http://localhost:8000`
 ### With Docker
 
 ```bash
-docker build -t steamanalytics-api .
-docker run -p 8000:8000 --env-file .env steamanalytics-api
+docker build -t keto-recipe-api .
+docker run -p 8000:8000 --env-file .env keto-recipe-api
 ```
 
 ## API Endpoints
@@ -75,23 +75,21 @@ GET /health
 
 These are called internally by the Go gateway.
 
-#### Fetch Game from Steam
+#### Recipe Management
 
-```
-POST /internal/games/fetch
+- `POST /internal/recipes/` - Create a new recipe with ingredients
+- `GET /internal/recipes/{recipe_id}` - Get recipe with calculated nutrition
+- `GET /internal/recipes/` - List recipes (with optional cuisine filter)
+- `PUT /internal/recipes/{recipe_id}` - Update recipe details
+- `DELETE /internal/recipes/{recipe_id}` - Delete a recipe
+- `POST /internal/recipes/{recipe_id}/ingredients` - Add ingredient to recipe
+- `DELETE /internal/recipes/{recipe_id}/ingredients/{ingredient_id}` - Remove ingredient
 
-Request:
-{
-  "steam_app_id": 570
-}
+#### Ingredient Search
 
-Response:
-{
-  "success": true,
-  "game_id": 1,
-  "error": null
-}
-```
+- `POST /internal/recipes/search-ingredients` - Search USDA FoodData Central for ingredients
+
+See [USDA_API.md](./USDA_API.md) for details on USDA integration.
 
 ## Testing
 
@@ -109,6 +107,12 @@ pytest --cov=app --cov-report=html
 - Max line length: 150 characters
 - Error handling with HTTPException
 - Database access through dependency injection
+
+## Notes for Claude
+
+**Please call out incorrect assumptions.** If asked to check something but it's patently incorrect, tell me directly rather than pretending to verify. Example: "That file doesn't exist" or "Requirements.txt is already there"—no need to run checks that will obviously fail or waste time being overly polite.
+
+**When defining properties, always include setters.** If a class uses `@property` decorators, make sure to add corresponding `@property_name.setter` methods. Read-only properties will cause `AttributeError` at runtime when assignment is attempted.
 
 ## Development
 

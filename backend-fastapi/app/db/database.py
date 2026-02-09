@@ -12,11 +12,19 @@ class DatabaseManager:
     @property
     def engine(self) -> AsyncEngine | None:
         return self._engine
-    
+
+    @engine.setter
+    def engine(self, value: AsyncEngine) -> None:
+        self._engine = value
+
     @property
     def async_session(self) -> sessionmaker | None:
         return self._async_session
-    
+
+    @async_session.setter
+    def async_session(self, value: sessionmaker) -> None:
+        self._async_session = value
+
     def __init__(self):
         self._engine: AsyncEngine | None = None
         self._async_session: sessionmaker | None = None

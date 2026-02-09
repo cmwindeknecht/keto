@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.db.database import db_manager
-from app.routes.internal import games as internal_games_routes
+from app.routes.internal import recipes as internal_recipes_routes
 
 
 @asynccontextmanager
@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="Steam Analytics FastAPI Service",
+    description="Keto Recipe API with nutrition tracking and recipe building",
     lifespan=lifespan,
 )
 
@@ -35,13 +35,13 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(internal_games_routes.router)
+app.include_router(internal_recipes_routes.router)
 
 
 @app.get("/health", tags=["health"])
 async def health_check() -> dict[str, str]:
     """Health check endpoint."""
-    return {"status": "ok", "service": "steam-analytics-api"}
+    return {"status": "ok", "service": "keto-recipe-api"}
 
 
 @app.get("/", tags=["info"])

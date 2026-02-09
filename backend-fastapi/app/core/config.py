@@ -10,17 +10,17 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "local"
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/steamanalytics"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/keto"
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379"
 
-    # Steam API
-    STEAM_API_KEY: str = ""
-    STEAM_API_BASE_URL: str = "https://api.steampowered.com"
+    # USDA FoodData Central API
+    USDA_API_KEY: str = ""
+    USDA_API_BASE_URL: str = "https://fdc.nal.usda.gov/api/food"
 
     # Application
-    APP_NAME: str = "Steam Analytics FastAPI"
+    APP_NAME: str = "Keto Recipe API"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = False
 
