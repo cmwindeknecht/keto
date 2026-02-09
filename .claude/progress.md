@@ -2,12 +2,18 @@
 
 ## ✅ Completed
 - Project structure setup
+- Docker Compose base config
+- FastAPI Skeleton
+- Steam API integration
 
 ## 🚧 In Progress
-- Docker Compose base config
+- Expand Services for FastAPI
+- Add DB Models for FastAPI
+- Add Business Logic for FastAPI
 
 ## 📋 Next Up
-- FastAPI Steam API integration
+- Supabase Postgres setup, data models
+- Background job to poll Steam API → save to Postgres
 - Go API gateway
 - React frontend
 - Kafka/Flink streaming

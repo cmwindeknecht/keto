@@ -2,10 +2,11 @@
 
 ## Python (FastAPI)
 - Use Pydantic models for all request/response schemas
-- Type hints required
+- Type hints required (including return types and imports)
 - Max line length: 150 chars
 - Use `async/await` for all endpoints
 - Error handling: raise HTTPException with proper status codes
+- Prefer explicit properties/attributes with type hints (e.g., `self.engine: AsyncEngine | None = None`)
 
 ## Go
 - Follow standard Go formatting (gofmt)

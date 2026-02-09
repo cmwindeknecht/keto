@@ -2,4 +2,5 @@
 
 **Update this before each Claude Code session**
 
-- Docker Compose base config
+- Goal: Flesh out steam_service.py
+- Directory: backend-fastapi
