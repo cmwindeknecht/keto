@@ -1,7 +1,18 @@
+from enum import Enum
 from pathlib import Path
 
-from pydantic_settings import BaseSettings, DotEnvSettingsSource
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
+class FetchType(Enum):
+    GET = "GET"
+    POST = "POST"
+
+class URL(Enum):
+    BY_FDCID = "/v1/food/{fdcId}"
+    BY_FDCIDS = "/v1/foods"
+    ALL_FOODS = "/v1/foods/list"
+    SEARCH = "/v1/foods/search"
+    
 
 class Settings(BaseSettings):
     """Application configuration loaded from environment variables with multi-environment support."""
@@ -17,56 +28,26 @@ class Settings(BaseSettings):
 
     # USDA FoodData Central API
     USDA_API_KEY: str = ""
-    USDA_API_BASE_URL: str = "https://fdc.nal.usda.gov/api/food"
+    USDA_BASE_URLS: dict[URL, FetchType] = {
+        URL.BY_FDCID: FetchType.GET,
+        URL.BY_FDCIDS: FetchType.POST,
+        URL.ALL_FOODS: FetchType.POST,
+        URL.SEARCH: FetchType.POST
+    }
+    USDA_API_BASE_URL: str = "https://fdc.nal.usda.gov/api"
 
     # Application
     APP_NAME: str = "Keto Recipe API"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = False
 
-    class Config:
-        case_sensitive = True
-
-        @classmethod
-        def settings_customise_sources(
-            cls,
-            settings_cls,
-            init_settings,
-            env_settings,
-            dotenv_settings,
-            file_settings,
-        ):
-            """
-            Load settings from multiple .env files based on ENVIRONMENT variable.
-
-            Priority order (highest to lowest):
-            1. init_settings (direct instantiation)
-            2. environment variables
-            3. .env.{environment} file
-            4. .env.local file
-            5. .env file
-            """
-            import os
-
-            env = os.getenv("ENVIRONMENT", "local")
-            base_path = Path(__file__).parent.parent.parent
-
-            env_files = [
-                base_path / ".env",
-                base_path / ".env.local",
-                base_path / f".env.{env}",
-            ]
-
-            dotenv_sources = [
-                DotEnvSettingsSource(settings_cls, env_file=str(f)) for f in env_files if f.exists()
-            ]
-
-            return (
-                init_settings,
-                env_settings,
-                *dotenv_sources,
-                file_settings,
-            )
+    model_config = SettingsConfigDict(
+        case_sensitive=True,
+        env_file=[
+            str(Path(__file__).resolve().parents[3] / ".env"),
+            str(Path(__file__).resolve().parents[3] / ".env.local"),
+        ],
+    )
 
 
 settings = Settings()

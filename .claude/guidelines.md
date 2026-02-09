@@ -28,6 +28,7 @@ How Claude Code should interact with this project.
 - Be concise and direct
 - Flag any security concerns immediately
 - Ask before committing significant changes
+- **Call out incorrect assumptions directly.** If the user says something patently incorrect (file doesn't exist, requirement already done, etc.), state it plainly rather than pretending to verify. No need to run checks that will obviously fail.
 
 ## Working with Comments & Documentation
 
@@ -35,3 +36,10 @@ How Claude Code should interact with this project.
 - Don't add docstrings/comments to code you didn't write
 - Only add comments where logic isn't self-evident
 - Update comments if code changes that they describe
+
+## Imports
+
+- **Do NOT use `__all__` to simplify imports** - use explicit imports instead
+- Import directly from modules: `from app.services.usda.usda_service import usda_service` or `from app.services.usda.models.requests import FoodsCriteria`
+- Never create magic imports with `__all__` to hide module structure
+- Make import paths explicit so code readability is maintained

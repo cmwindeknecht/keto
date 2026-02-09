@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.db.database import db_manager
 from app.routes.internal import recipes as internal_recipes_routes
+from app.routes.internal import usda as internal_usda_routes
 
 
 @asynccontextmanager
@@ -36,6 +37,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(internal_recipes_routes.router)
+app.include_router(internal_usda_routes.router)
 
 
 @app.get("/health", tags=["health"])
