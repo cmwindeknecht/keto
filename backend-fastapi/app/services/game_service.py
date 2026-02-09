@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import DatabaseError
-from app.models.game import GameCreate, GameResponse
+from app.schemas import GameCreate, GameResponse
 from app.services.steam_service import steam_service
 
 

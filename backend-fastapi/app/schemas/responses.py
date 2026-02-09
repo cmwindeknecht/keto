@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+## TODO These are not great --- but its a fine start so I can do it properly later
 class GameBase(BaseModel):
     """Base game model with common fields."""
 
@@ -12,21 +13,8 @@ class GameBase(BaseModel):
     description: Optional[str] = Field(None, description="Game description")
 
 
-class GameCreate(GameBase):
-    """Game creation request model."""
-
-    pass
-
-
-class GameUpdate(BaseModel):
-    """Game update request model."""
-
-    name: Optional[str] = None
-    description: Optional[str] = None
-
-
 class GameResponse(GameBase):
-    """Game response model."""
+    """Game response model returned from API."""
 
     id: int = Field(..., description="Database ID")
     created_at: datetime = Field(..., description="Creation timestamp")
@@ -34,12 +22,6 @@ class GameResponse(GameBase):
 
     class Config:
         from_attributes = True
-
-
-class FetchGameRequest(BaseModel):
-    """Request to fetch game from Steam API."""
-
-    steam_app_id: int = Field(..., description="Steam application ID to fetch")
 
 
 class FetchGameResponse(BaseModel):
