@@ -1,7 +1,18 @@
+from enum import Enum
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, DotEnvSettingsSource
 
+class FetchType(Enum):
+    GET = "GET"
+    POST = "POST"
+
+class URL(Enum):
+    BY_FDCID = "/v1/food/{fdcId}"
+    BY_FDCIDS = "/v1/foods"
+    ALL_FOODS = "/v1/foods/list"
+    SEARCH = "/v1/foods/search"
+    
 
 class Settings(BaseSettings):
     """Application configuration loaded from environment variables with multi-environment support."""
@@ -17,7 +28,13 @@ class Settings(BaseSettings):
 
     # USDA FoodData Central API
     USDA_API_KEY: str = ""
-    USDA_API_BASE_URL: str = "https://fdc.nal.usda.gov/api/food"
+    USDA_BASE_URLS: dict[URL, FetchType] = {
+        URL.BY_FDCID: FetchType.GET,
+        URL.BY_FDCIDS: FetchType.POST,
+        URL.ALL_FOODS: FetchType.POST,
+        URL.SEARCH: FetchType.POST
+    }
+    USDA_API_BASE_URL: str = "https://fdc.nal.usda.gov/api"
 
     # Application
     APP_NAME: str = "Keto Recipe API"

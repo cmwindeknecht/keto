@@ -1,3 +1,5 @@
+"""Service for recipe business logic and orchestration."""
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -6,7 +8,7 @@ from app.core.exceptions import RecipeNotFoundError, IngredientNotFoundError, Da
 from app.db.models import Recipe, Ingredient, RecipeIngredient
 from app.routes.models.requests import RecipeCreate, RecipeUpdate, RecipeIngredientInput
 from app.routes.models.responses import RecipeResponse, RecipeIngredientResponse, IngredientResponse
-from app.services.usda_service import usda_service
+from app.services.usda.usda_service import usda_service
 
 
 class RecipeService:

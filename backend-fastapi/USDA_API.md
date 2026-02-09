@@ -1,174 +1,274 @@
-# USDA FoodData Central API
+# USDA FoodData Central API Documentation
 
-This application uses the USDA FoodData Central API to retrieve comprehensive nutrition data for food items.
+> **Last modified:** 2020-04-30
 
-## API Overview
+## Overview
 
-- **Base URL**: `https://fdc.nal.usda.gov/api/food`
-- **Documentation**: https://fdc.nal.usda.gov/api-guide.html
-- **Authentication**: Requires a free API key from https://fdc.nal.usda.gov/api-key
+The FoodData Central API provides REST access to FoodData Central (FDC). It is intended primarily to assist application developers wishing to incorporate nutrient data into their applications or websites.
 
-## Required Setup
+To take full advantage of the API, developers should familiarize themselves with the database by reading the database documentation available via links on [Data Type Documentation](https://fdc.nal.usda.gov/data-documentation.html). This documentation provides the detailed definitions and descriptions needed to understand the data elements referenced in the API documentation.
 
-1. Get a free API key from [USDA FoodData Central](https://fdc.nal.usda.gov/api-key)
-2. Add your API key to your `.env` file:
-   ```
-   USDA_API_KEY=your_api_key_here
-   ```
+Additional details about the API including rate limits, access, and licensing are available on the [FDC website](https://fdc.nal.usda.gov/api-guide.html).
 
-## API Endpoints Used
+**Version:** 1.0.1
+**Base URL:** `https://api.nal.usda.gov/fdc`
+**Authentication:** API Key (via query parameter `api_key`)
 
-### Search Endpoint
-Searches the USDA FoodData Central database for foods matching a query.
+---
 
-**Request:**
-```
-GET https://fdc.nal.usda.gov/api/food/search
-?query=chicken
-&pageSize=20
-&api_key=YOUR_API_KEY
-```
+## Endpoints
 
-**Parameters:**
-- `query` (required): Search term (food name or keyword)
-- `pageSize` (optional): Maximum results per page (default: 10, max: 100)
-- `api_key` (required): Your USDA API key
+### 1. Get Food by FDC ID
 
-**Response:**
-Returns a JSON object with a `foods` array containing matching foods with nutrition data.
+**Endpoint:** `GET /v1/food/{fdcId}`
 
-### Food Details Endpoint
-Gets detailed nutrition information for a specific food item.
+Retrieves a single food item by an FDC ID. Optional format and nutrients can be specified.
 
-**Request:**
-```
-GET https://fdc.nal.usda.gov/api/food/{fdcId}
-?api_key=YOUR_API_KEY
-```
+#### Parameters
 
-**Parameters:**
-- `{fdcId}` (required): The FDC ID of the food (e.g., "167556")
-- `api_key` (required): Your USDA API key
+| Name | Location | Type | Required | Description |
+|------|----------|------|----------|-------------|
+| `fdcId` | Path | String | Yes | FDC id of the food to retrieve |
+| `format` | Query | String | No | 'abridged' for abridged set, 'full' for all elements (default) |
+| `nutrients` | Query | Array[Integer] | No | List of up to 25 nutrient numbers (comma-separated or repeating parameters) |
 
-**Response:**
-Returns a detailed food object with complete nutrition data.
+#### Response
 
-## Nutrient IDs
+**200 OK** - One food result
+- Returns one of: `AbridgedFoodItem`, `BrandedFoodItem`, `FoundationFoodItem`, `SRLegacyFoodItem`, `SurveyFoodItem`
 
-The USDA API returns nutrients with specific IDs. We use these key nutrients:
+**400** - Bad input parameter
 
-| ID   | Nutrient              | Unit |
-|------|----------------------|------|
-| 1008 | Energy (kcal)        | kcal |
-| 1003 | Protein              | g    |
-| 1004 | Total Lipid (Fat)    | g    |
-| 1005 | Carbohydrates        | g    |
-| 1079 | Fiber, total dietary | g    |
+**404** - No results found
 
-## Rate Limiting
+---
 
-- **Free tier**: 3600 requests per hour per API key
-- **Rate limit header**: `X-RateLimit-Limit`, `X-RateLimit-Remaining`
+### 2. Get Multiple Foods by FDC IDs (GET)
 
-Check the response headers to monitor your usage.
+**Endpoint:** `GET /v1/foods`
 
-## Food Data Types
+Retrieves a list of food items by a list of up to 20 FDC IDs. Optional format and nutrients can be specified. Invalid FDC IDs or ones that are not found are omitted.
 
-USDA FoodData Central contains foods from multiple data types:
+#### Parameters
 
-1. **Foundation Foods** (fdc_id prefixed with 'SR')
-   - Carefully chosen foods representative of American diet
-   - Complete nutrient profiles
+| Name | Location | Type | Required | Description |
+|------|----------|------|----------|-------------|
+| `fdcIds` | Query | Array[String] | Yes | List of FDC IDs (comma-separated or repeating parameters) |
+| `format` | Query | String | No | 'abridged' or 'full' (default) |
+| `nutrients` | Query | Array[Integer] | No | List of up to 25 nutrient numbers |
 
-2. **SR Legacy Foods** (fdc_id prefixed with 'SR')
-   - Foods from the original USDA nutrient database
-   - Well-researched, complete data
+#### Response
 
-3. **Branded Foods** (various prefixes)
-   - Actual commercial products with nutrition labels
-   - Most relevant for packaged/processed foods
+**200 OK** - List of food details matching specified FDC IDs
 
-## Example Request/Response
+**400** - Bad input parameter
 
-### Search for Chicken
+---
 
-**Request:**
-```bash
-curl "https://fdc.nal.usda.gov/api/food/search?query=chicken&pageSize=5&api_key=YOUR_API_KEY"
-```
+### 3. Get Multiple Foods by FDC IDs (POST)
 
-**Response (truncated):**
+**Endpoint:** `POST /v1/foods`
+
+Retrieves a list of food items by a list of up to 20 FDC IDs. Optional format and nutrients can be specified.
+
+#### Request Body
+
 ```json
 {
-  "foods": [
-    {
-      "fdcId": "167556",
-      "description": "Chicken, broilers or fryers, meat only, raw",
-      "foodNutrients": [
-        {
-          "nutrientId": 1008,
-          "value": 165,
-          "unitName": "kcal"
-        },
-        {
-          "nutrientId": 1003,
-          "value": 18.6,
-          "unitName": "g"
-        },
-        {
-          "nutrientId": 1004,
-          "value": 9.3,
-          "unitName": "g"
-        }
-      ]
-    }
-  ],
-  "totalHits": 847
+  "fdcIds": [534358, 373052, 616350],
+  "format": "full",
+  "nutrients": [203, 204, 205]
 }
 ```
 
-## Keto Recipe App Integration
+**Schema:** `FoodsCriteria`
 
-Our application:
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `fdcIds` | Array[Integer] | Yes | List of FDC IDs (1-20 items) |
+| `format` | String | No | 'abridged' or 'full' (default) |
+| `nutrients` | Array[Integer] | No | List of up to 25 nutrient numbers |
 
-1. **Searches ingredients** using the `/internal/recipes/search-ingredients` endpoint
-   - Calls USDA search endpoint
-   - Returns results with 100g nutrition data
+#### Response
 
-2. **Caches ingredients** in the local database
-   - Stores USDA FDC ID for future reference
-   - Stores extracted nutrition data (calories, protein, fat, carbs, fiber)
-   - Reduces API calls for frequently used ingredients
+**200 OK** - List of food details
 
-3. **Calculates recipe nutrition**
-   - Combines ingredient nutrition data based on recipe quantities
-   - Provides total macro information for recipes
+**400** - Bad input parameter
 
-## Best Practices
+---
 
-- **Cache aggressively**: Store looked-up ingredients in the database to minimize API calls
-- **Handle errors gracefully**: USDA API may timeout or be rate-limited
-- **Validate quantities**: Ensure reasonable ingredient quantities (1g to 10kg)
-- **Use Foundation Foods when possible**: More reliable than branded products
+### 4. List All Foods (GET)
 
-## Troubleshooting
+**Endpoint:** `GET /v1/foods/list`
 
-### "API key not configured"
-- Ensure `USDA_API_KEY` is set in your `.env` file
-- Verify the API key is valid at https://fdc.nal.usda.gov/api-key
+Returns a paged list of foods in the 'abridged' format. Use the pageNumber parameter to page through the entire result set.
 
-### "No results found"
-- The ingredient may not exist in USDA database
-- Try broader search terms
-- Check spelling of ingredient
+#### Parameters
 
-### "Rate limit exceeded"
-- Your API key has hit the 3600 requests/hour limit
-- Wait until the next hour to continue
-- Consider caching more aggressively
+| Name | Location | Type | Required | Description |
+|------|----------|------|----------|-------------|
+| `dataType` | Query | Array[String] | No | Filter by data type: Branded, Foundation, Survey (FNDDS), SR Legacy |
+| `pageSize` | Query | Integer | No | Max results per page (1-200, default 50) |
+| `pageNumber` | Query | Integer | No | Page number to retrieve |
+| `sortBy` | Query | String | No | Sort field: dataType.keyword, lowercaseDescription.keyword, fdcId, publishedDate |
+| `sortOrder` | Query | String | No | 'asc' or 'desc' |
 
-## References
+#### Response
 
-- [USDA FoodData Central](https://fdc.nal.usda.gov/)
-- [API Documentation](https://fdc.nal.usda.gov/api-guide.html)
-- [Data Types and Scope](https://fdc.nal.usda.gov/what-is-fdc.html)
+**200 OK** - List of foods for the requested page
+
+**400** - Bad input parameter
+
+---
+
+### 5. List All Foods (POST)
+
+**Endpoint:** `POST /v1/foods/list`
+
+Returns a paged list of foods in the 'abridged' format.
+
+#### Request Body
+
+**Schema:** `FoodListCriteria`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `dataType` | Array[String] | No | Filter by data type |
+| `pageSize` | Integer | No | Max results per page (1-200, default 50) |
+| `pageNumber` | Integer | No | Page number |
+| `sortBy` | String | No | Sort field |
+| `sortOrder` | String | No | 'asc' or 'desc' |
+
+#### Response
+
+**200 OK** - List of foods for the requested page
+
+**400** - Bad input parameter
+
+---
+
+### 6. Search Foods (GET)
+
+**Endpoint:** `GET /v1/foods/search`
+
+Search for foods using keywords. Results can be filtered by dataType and there are options for result page sizes or sorting.
+
+#### Parameters
+
+| Name | Location | Type | Required | Description |
+|------|----------|------|----------|-------------|
+| `query` | Query | String | Yes | One or more search terms (supports [search operators](https://fdc.nal.usda.gov/help.html#bkmk-2)) |
+| `dataType` | Query | Array[String] | No | Filter by data type |
+| `pageSize` | Query | Integer | No | Max results per page (1-200, default 50) |
+| `pageNumber` | Query | Integer | No | Page number |
+| `sortBy` | Query | String | No | Sort field |
+| `sortOrder` | Query | String | No | 'asc' or 'desc' |
+| `brandOwner` | Query | String | No | Filter by brand owner (Branded Foods only) |
+
+#### Response
+
+**200 OK** - List of foods matching search criteria
+
+```json
+{
+  "foodSearchCriteria": { ... },
+  "totalHits": 1034,
+  "currentPage": 1,
+  "totalPages": 35,
+  "foods": [ ... ]
+}
+```
+
+**400** - Bad input parameter
+
+---
+
+### 7. Search Foods (POST)
+
+**Endpoint:** `POST /v1/foods/search`
+
+Search for foods using keywords with POST request body.
+
+#### Request Body
+
+**Schema:** `FoodSearchCriteria`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `query` | String | Yes | Search terms |
+| `dataType` | Array[String] | No | Filter by data type |
+| `pageSize` | Integer | No | Max results per page |
+| `pageNumber` | Integer | No | Page number |
+| `sortBy` | String | No | Sort field |
+| `sortOrder` | String | No | 'asc' or 'desc' |
+| `brandOwner` | String | No | Filter by brand owner |
+| `tradeChannel` | Array[String] | No | Filter by trade channel |
+| `startDate` | String | No | Filter foods published after this date (YYYY-MM-DD) |
+| `endDate` | String | No | Filter foods published before this date (YYYY-MM-DD) |
+
+#### Response
+
+**200 OK** - List of foods matching search criteria
+
+**400** - Bad input parameter
+
+---
+
+## Request/Response Models
+
+### FoodsCriteria
+
+```typescript
+{
+  fdcIds: number[];           // 1-20 items, required
+  format?: 'abridged' | 'full';  // optional, default 'full'
+  nutrients?: number[];       // 1-25 items, nutrient numbers
+}
+```
+
+### FoodListCriteria
+
+```typescript
+{
+  dataType?: ('Branded' | 'Foundation' | 'Survey (FNDDS)' | 'SR Legacy')[];
+  pageSize?: number;          // 1-200, default 50
+  pageNumber?: number;
+  sortBy?: 'dataType.keyword' | 'lowercaseDescription.keyword' | 'fdcId' | 'publishedDate';
+  sortOrder?: 'asc' | 'desc';
+}
+```
+
+### FoodSearchCriteria
+
+```typescript
+{
+  query: string;              // required
+  dataType?: ('Branded' | 'Foundation' | 'Survey (FNDDS)' | 'SR Legacy')[];
+  pageSize?: number;          // 1-200, default 50
+  pageNumber?: number;
+  sortBy?: 'dataType.keyword' | 'lowercaseDescription.keyword' | 'fdcId' | 'publishedDate';
+  sortOrder?: 'asc' | 'desc';
+  brandOwner?: string;
+  tradeChannel?: ('CHILD_NUTRITION_FOOD_PROGRAMS' | 'DRUG' | 'FOOD_SERVICE' | 'GROCERY' | 'MASS_MERCHANDISING' | 'MILITARY' | 'ONLINE' | 'VENDING')[];
+  startDate?: string;         // YYYY-MM-DD format
+  endDate?: string;           // YYYY-MM-DD format
+}
+```
+
+### Food Items
+
+All food endpoints return one or more of these food item types:
+- `AbridgedFoodItem` - Basic food information
+- `BrandedFoodItem` - Branded food with detailed nutrition
+- `FoundationFoodItem` - Foundation food with detailed nutrition
+- `SRLegacyFoodItem` - Legacy food item
+- `SurveyFoodItem` - Survey (FNDDS) food item
+
+---
+
+## Notes
+
+- All requests require an API key passed as the `api_key` query parameter
+- POST endpoints provide an alternative to GET for complex queries with request bodies
+- Most numeric IDs (fdcId, nutrient numbers) are integers
+- Food data varies by type; some fields only apply to specific food types

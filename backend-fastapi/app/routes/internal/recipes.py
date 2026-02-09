@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import get_db
 from app.routes.models.requests import RecipeCreate, RecipeUpdate, SearchIngredientsRequest, RecipeIngredientInput
 from app.routes.models.responses import RecipeResponse, SearchIngredientsResponse, IngredientResponse
-from app.services.recipe_service import recipe_service
-from app.services.usda_service import usda_service
+from app.services.recipe.recipe_service import recipe_service
+from app.services.usda.usda_service import usda_service
 
 router = APIRouter(
     prefix="/internal/recipes",
