@@ -2,5 +2,5 @@
 
 **Update this before each Claude Code session**
 
-- Goal: Understand the AI generated FastAPI skeleton
+- Goal: Flesh out steam_service.py
 - Directory: backend-fastapi

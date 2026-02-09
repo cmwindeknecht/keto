@@ -7,8 +7,8 @@
 - Steam API integration
 
 ## 🚧 In Progress
-- Add DB Models for FastAPI
 - Expand Services for FastAPI
+- Add DB Models for FastAPI
 - Add Business Logic for FastAPI
 
 ## 📋 Next Up
