@@ -1,7 +1,7 @@
 from enum import Enum
 from pathlib import Path
 
-from pydantic_settings import BaseSettings, DotEnvSettingsSource
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class FetchType(Enum):
     GET = "GET"
@@ -41,49 +41,13 @@ class Settings(BaseSettings):
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = False
 
-    class Config:
-        case_sensitive = True
-
-        @classmethod
-        def settings_customise_sources(
-            cls,
-            settings_cls,
-            init_settings,
-            env_settings,
-            dotenv_settings,
-            file_settings,
-        ):
-            """
-            Load settings from multiple .env files based on ENVIRONMENT variable.
-
-            Priority order (highest to lowest):
-            1. init_settings (direct instantiation)
-            2. environment variables
-            3. .env.{environment} file
-            4. .env.local file
-            5. .env file
-            """
-            import os
-
-            env = os.getenv("ENVIRONMENT", "local")
-            base_path = Path(__file__).parent.parent.parent
-
-            env_files = [
-                base_path / ".env",
-                base_path / ".env.local",
-                base_path / f".env.{env}",
-            ]
-
-            dotenv_sources = [
-                DotEnvSettingsSource(settings_cls, env_file=str(f)) for f in env_files if f.exists()
-            ]
-
-            return (
-                init_settings,
-                env_settings,
-                *dotenv_sources,
-                file_settings,
-            )
+    model_config = SettingsConfigDict(
+        case_sensitive=True,
+        env_file=[
+            str(Path(__file__).resolve().parents[3] / ".env"),
+            str(Path(__file__).resolve().parents[3] / ".env.local"),
+        ],
+    )
 
 
 settings = Settings()
