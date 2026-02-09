@@ -1,3 +1,5 @@
+from collections.abc import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -12,11 +14,19 @@ class DatabaseManager:
     @property
     def engine(self) -> AsyncEngine | None:
         return self._engine
-    
+
+    @engine.setter
+    def engine(self, value: AsyncEngine) -> None:
+        self._engine = value
+
     @property
     def async_session(self) -> sessionmaker | None:
         return self._async_session
-    
+
+    @async_session.setter
+    def async_session(self, value: sessionmaker) -> None:
+        self._async_session = value
+
     def __init__(self):
         self._engine: AsyncEngine | None = None
         self._async_session: sessionmaker | None = None
@@ -39,7 +49,7 @@ class DatabaseManager:
             self.engine, class_=AsyncSession, expire_on_commit=False, future=True
         )
 
-    async def get_session(self) -> AsyncSession:
+    async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
         """Get a new database session."""
         if self.async_session is None:
             await self.initialize()
@@ -55,7 +65,7 @@ class DatabaseManager:
 db_manager = DatabaseManager()
 
 
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency for getting a database session."""
     async for session in db_manager.get_session():
         yield session

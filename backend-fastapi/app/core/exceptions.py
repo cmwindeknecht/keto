@@ -1,17 +1,24 @@
 from fastapi import HTTPException, status
 
 
-class GameNotFoundError(HTTPException):
-    """Raised when a game is not found."""
+class RecipeNotFoundError(HTTPException):
+    """Raised when a recipe is not found."""
 
-    def __init__(self, detail: str = "Game not found"):
+    def __init__(self, detail: str = "Recipe not found"):
         super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
 
 
-class SteamAPIError(HTTPException):
-    """Raised when Steam API returns an error."""
+class IngredientNotFoundError(HTTPException):
+    """Raised when an ingredient is not found."""
 
-    def __init__(self, detail: str = "Error communicating with Steam API"):
+    def __init__(self, detail: str = "Ingredient not found"):
+        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+
+
+class USDAAPIError(HTTPException):
+    """Raised when USDA FoodData Central API returns an error."""
+
+    def __init__(self, detail: str = "Error communicating with USDA API"):
         super().__init__(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)
 
 
