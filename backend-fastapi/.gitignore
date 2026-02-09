@@ -15,8 +15,7 @@ ENV/
 *.swo
 *~
 
-# Environment
-.env
+# Environment (local overrides only)
 .env.local
 
 # Testing

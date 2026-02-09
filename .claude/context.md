@@ -2,5 +2,5 @@
 
 **Update this before each Claude Code session**
 
-- Goal: Create a Fast API Skeleton 
+- Goal: Understand the AI generated FastAPI skeleton
 - Directory: backend-fastapi
