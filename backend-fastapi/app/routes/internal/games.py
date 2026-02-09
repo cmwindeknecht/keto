@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
-from app.schemas import FetchGameRequest, FetchGameResponse
+from app.routes.models.requests import FetchGameRequest
+from app.routes.models.responses import FetchGameResponse
 from app.services.game_service import game_service
 
 router = APIRouter(prefix="/internal/games", tags=["internal", "games"])

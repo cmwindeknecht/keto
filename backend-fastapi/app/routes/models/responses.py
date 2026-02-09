@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 
 ## TODO These are not great --- but its a fine start so I can do it properly later
-class GameBase(BaseModel):
+class GameResponseBase(BaseModel):
     """Base game model with common fields."""
 
     steam_app_id: int = Field(..., description="Steam application ID")
@@ -13,7 +13,7 @@ class GameBase(BaseModel):
     description: Optional[str] = Field(None, description="Game description")
 
 
-class GameResponse(GameBase):
+class GameResponse(GameResponseBase):
     """Game response model returned from API."""
 
     id: int = Field(..., description="Database ID")

@@ -4,12 +4,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import DatabaseError
-from app.schemas import GameCreate, GameResponse
+from app.routes.models.requests import GameCreate
+from app.routes.models.responses import GameResponse
 from app.services.steam_service import steam_service
 
 
+"""External Facing Service for managing game data."""
 class GameService:
-    """Service for managing game data."""
+    
 
     async def create_game(self, session: AsyncSession, game_data: GameCreate) -> GameResponse:
         """

@@ -3,9 +3,9 @@ import httpx
 from app.core.config import settings
 from app.core.exceptions import SteamAPIError
 
-
+"""Internal Facing Service for interacting with the Steam API."""
 class SteamService:
-    """Service for interacting with the Steam API."""
+    
 
     def __init__(self):
         self.base_url = settings.STEAM_API_BASE_URL
