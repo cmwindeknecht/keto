@@ -9,17 +9,15 @@ from app.db.models import Cuisine
 class IngredientResponse(BaseModel):
     """Ingredient response model with nutrition information."""
 
-    id: int = Field(..., description="Database ID")
-    usda_fdc_id: str = Field(..., description="USDA FoodData Central ID")
+    usda_fdc_id: int = Field(..., description="USDA FoodData Central ID")
     name: str = Field(..., description="Ingredient name")
+    data_type: Optional[str] = Field(None, description="Data type: Foundation, SR Legacy, Survey (FNDDS), Branded")
+    brand_owner: Optional[str] = Field(None, description="Brand owner (for branded foods)")
     calories_per_100g: float = Field(..., description="Calories per 100g")
     protein_per_100g: float = Field(..., description="Protein (g) per 100g")
     fat_per_100g: float = Field(..., description="Fat (g) per 100g")
     carbs_per_100g: float = Field(..., description="Carbs (g) per 100g")
     fiber_per_100g: float = Field(..., description="Fiber (g) per 100g")
-
-    class Config:
-        from_attributes = True
 
 
 class RecipeIngredientResponse(BaseModel):

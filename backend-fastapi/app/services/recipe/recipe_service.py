@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import RecipeNotFoundError, IngredientNotFoundError, DatabaseError
-from app.db.models import Recipe, Ingredient, RecipeIngredient
+from app.db.models import Recipe, RecipeIngredient
 from app.routes.models.requests import RecipeCreate, RecipeUpdate, RecipeIngredientInput
 from app.routes.models.responses import RecipeResponse, RecipeIngredientResponse, IngredientResponse
 from app.services.usda.usda_service import usda_service
@@ -27,7 +27,6 @@ class RecipeService:
 
         Raises:
             DatabaseError: If creation fails
-            IngredientNotFoundError: If an ingredient doesn't exist in database
         """
         try:
             # Create recipe record
@@ -39,12 +38,11 @@ class RecipeService:
             session.add(recipe)
             await session.flush()
 
-            # Add ingredients to recipe
+            # Add ingredients to recipe (referenced by USDA FDC ID)
             for ingredient_input in recipe_data.ingredients:
-                ingredient = await self._get_or_create_ingredient(session, ingredient_input.usda_fdc_id)
                 recipe_ingredient = RecipeIngredient(
                     recipe_id=recipe.id,
-                    ingredient_id=ingredient.id,
+                    usda_fdc_id=ingredient_input.usda_fdc_id,
                     quantity_grams=ingredient_input.quantity_grams,
                 )
                 session.add(recipe_ingredient)
@@ -180,7 +178,7 @@ class RecipeService:
         Args:
             session: Database session
             recipe_id: ID of recipe to add ingredient to
-            ingredient_input: Ingredient and quantity
+            ingredient_input: Ingredient (by USDA FDC ID) and quantity
 
         Returns:
             Updated recipe response
@@ -197,10 +195,9 @@ class RecipeService:
             if not recipe:
                 raise RecipeNotFoundError(f"Recipe with ID {recipe_id} not found")
 
-            ingredient = await self._get_or_create_ingredient(session, ingredient_input.usda_fdc_id)
             recipe_ingredient = RecipeIngredient(
                 recipe_id=recipe_id,
-                ingredient_id=ingredient.id,
+                usda_fdc_id=ingredient_input.usda_fdc_id,
                 quantity_grams=ingredient_input.quantity_grams,
             )
             session.add(recipe_ingredient)
@@ -214,7 +211,7 @@ class RecipeService:
             raise DatabaseError(f"Failed to add ingredient: {str(e)}")
 
     async def remove_ingredient_from_recipe(
-        self, session: AsyncSession, recipe_id: int, ingredient_id: int
+        self, session: AsyncSession, recipe_id: int, usda_fdc_id: int
     ) -> RecipeResponse:
         """
         Remove an ingredient from a recipe.
@@ -222,7 +219,7 @@ class RecipeService:
         Args:
             session: Database session
             recipe_id: ID of recipe
-            ingredient_id: ID of ingredient to remove
+            usda_fdc_id: USDA FDC ID of ingredient to remove
 
         Returns:
             Updated recipe response
@@ -240,13 +237,13 @@ class RecipeService:
                 raise RecipeNotFoundError(f"Recipe with ID {recipe_id} not found")
 
             stmt = select(RecipeIngredient).where(
-                (RecipeIngredient.recipe_id == recipe_id) & (RecipeIngredient.ingredient_id == ingredient_id)
+                (RecipeIngredient.recipe_id == recipe_id) & (RecipeIngredient.usda_fdc_id == usda_fdc_id)
             )
             result = await session.execute(stmt)
             recipe_ingredient = result.scalar_one_or_none()
 
             if not recipe_ingredient:
-                raise IngredientNotFoundError(f"Ingredient {ingredient_id} not in recipe {recipe_id}")
+                raise IngredientNotFoundError(f"Ingredient {usda_fdc_id} not in recipe {recipe_id}")
 
             await session.delete(recipe_ingredient)
             await session.commit()
@@ -258,57 +255,11 @@ class RecipeService:
             await session.rollback()
             raise DatabaseError(f"Failed to remove ingredient: {str(e)}")
 
-    async def _get_or_create_ingredient(self, session: AsyncSession, usda_fdc_id: str) -> Ingredient:
-        """
-        Get ingredient from database or create it by fetching from USDA API.
-
-        Args:
-            session: Database session
-            usda_fdc_id: USDA FoodData Central ID
-
-        Returns:
-            Ingredient model
-
-        Raises:
-            IngredientNotFoundError: If USDA API fails to find ingredient
-            DatabaseError: If database operation fails
-        """
-        # Check if ingredient already exists
-        stmt = select(Ingredient).where(Ingredient.usda_fdc_id == usda_fdc_id)
-        result = await session.execute(stmt)
-        ingredient = result.scalar_one_or_none()
-
-        if ingredient:
-            return ingredient
-
-        # Fetch from USDA API
-        usda_data = await usda_service.get_ingredient_details(usda_fdc_id)
-
-        # Extract nutrition data from USDA response
-        nutrients = {nutrient["nutrientId"]: nutrient.get("value", 0) for nutrient in usda_data.get("foodNutrients", [])}
-
-        # USDA nutrient IDs:
-        # 1008 = Energy (kcal)
-        # 1003 = Protein (g)
-        # 1004 = Total lipid (fat) (g)
-        # 1005 = Carbohydrates (g)
-        # 1079 = Fiber (g)
-        ingredient = Ingredient(
-            usda_fdc_id=usda_fdc_id,
-            name=usda_data.get("description", "Unknown"),
-            calories_per_100g=nutrients.get(1008, 0),
-            protein_per_100g=nutrients.get(1003, 0),
-            fat_per_100g=nutrients.get(1004, 0),
-            carbs_per_100g=nutrients.get(1005, 0),
-            fiber_per_100g=nutrients.get(1079, 0),
-        )
-        session.add(ingredient)
-        await session.flush()
-        return ingredient
-
     async def _recipe_to_response(self, recipe: Recipe) -> RecipeResponse:
         """
         Convert Recipe ORM model to RecipeResponse with calculated nutrition totals.
+
+        Fetches ingredient data from Redis cache for each recipe ingredient.
 
         Args:
             recipe: Recipe ORM model
@@ -324,15 +275,27 @@ class RecipeService:
         total_fiber = 0
 
         for recipe_ingredient in recipe.recipe_ingredients:
-            ingredient = recipe_ingredient.ingredient
+            usda_fdc_id = recipe_ingredient.usda_fdc_id
             quantity_grams = recipe_ingredient.quantity_grams
-            ratio = quantity_grams / 100
 
-            calories = ingredient.calories_per_100g * ratio
-            protein = ingredient.protein_per_100g * ratio
-            fat = ingredient.fat_per_100g * ratio
-            carbs = ingredient.carbs_per_100g * ratio
-            fiber = ingredient.fiber_per_100g * ratio
+            # Fetch ingredient from cache
+            cached_ingredient = await usda_service.get_ingredient_with_cache(usda_fdc_id)
+
+            # Extract nutrients from cached data
+            nutrients_dict = {n.nutrient_type: n.amount for n in cached_ingredient.nutrients}
+            calories = nutrients_dict.get("calories", 0)
+            protein = nutrients_dict.get("protein", 0)
+            fat = nutrients_dict.get("fat", 0)
+            carbs = nutrients_dict.get("carbs", 0)
+            fiber = nutrients_dict.get("fiber", 0)
+
+            # Calculate contribution based on quantity
+            ratio = quantity_grams / 100
+            calories *= ratio
+            protein *= ratio
+            fat *= ratio
+            carbs *= ratio
+            fiber *= ratio
 
             total_calories += calories
             total_protein += protein
@@ -343,14 +306,13 @@ class RecipeService:
             recipe_ingredients.append(
                 RecipeIngredientResponse(
                     ingredient=IngredientResponse(
-                        id=ingredient.id,
-                        usda_fdc_id=ingredient.usda_fdc_id,
-                        name=ingredient.name,
-                        calories_per_100g=ingredient.calories_per_100g,
-                        protein_per_100g=ingredient.protein_per_100g,
-                        fat_per_100g=ingredient.fat_per_100g,
-                        carbs_per_100g=ingredient.carbs_per_100g,
-                        fiber_per_100g=ingredient.fiber_per_100g,
+                        usda_fdc_id=usda_fdc_id,
+                        name=cached_ingredient.name,
+                        calories_per_100g=nutrients_dict.get("calories", 0),
+                        protein_per_100g=nutrients_dict.get("protein", 0),
+                        fat_per_100g=nutrients_dict.get("fat", 0),
+                        carbs_per_100g=nutrients_dict.get("carbs", 0),
+                        fiber_per_100g=nutrients_dict.get("fiber", 0),
                     ),
                     quantity_grams=quantity_grams,
                     calories=calories,

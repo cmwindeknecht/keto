@@ -14,9 +14,11 @@
   - Comprehensive documentation (README, USDA_API.md)
   - API key added to .env.local
   - Tested endpoints via FastAPI `/docs` interface
+- Implementing USDA FoodData Central fooddata service integration
 
 ## 🚧 In Progress
-- Implementing USDA FoodData Central fooddata service integration
+- Implementing Recipe Service
+- Implementing Database
 
 ## 📋 Next Up
 - Supabase Postgres setup, create keto database and run migrations
