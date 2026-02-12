@@ -35,6 +35,8 @@ class RecipeService:
                 cuisine=recipe_data.cuisine,
                 description=recipe_data.description,
             )
+            # Initialize the relationship collection to avoid lazy-load issues
+            recipe.recipe_ingredients = []
             session.add(recipe)
             await session.flush()
 

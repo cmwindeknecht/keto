@@ -1,0 +1,465 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Keto Recipe API Gateway",
+    "description": "BFF (Backend For Frontend) Gateway for the Keto Recipe API with authentication and caching",
+    "version": "0.1.0",
+    "contact": {
+      "name": "API Support"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Development server"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    },
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "description": "Check if the gateway is running and healthy",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Gateway is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string" },
+                    "service": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recipes": {
+      "get": {
+        "tags": ["Recipes"],
+        "summary": "List all recipes",
+        "description": "Get a list of all recipes with optional filtering",
+        "parameters": [
+          {
+            "name": "cuisine",
+            "in": "query",
+            "description": "Filter by cuisine type",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of recipes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Recipe" }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Recipes"],
+        "summary": "Create a new recipe",
+        "description": "Create a new recipe with ingredients",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RecipeCreate" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recipe created successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Recipe" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/recipes/{id}": {
+      "get": {
+        "tags": ["Recipes"],
+        "summary": "Get recipe by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recipe details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Recipe" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "tags": ["Recipes"],
+        "summary": "Update recipe",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RecipeUpdate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recipe updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Recipe" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Recipes"],
+        "summary": "Delete recipe",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Recipe deleted" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/recipes/{id}/ingredients": {
+      "post": {
+        "tags": ["Recipes"],
+        "summary": "Add ingredient to recipe",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/IngredientInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ingredient added",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Recipe" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/recipes/{id}/ingredients/{ingredient_id}": {
+      "delete": {
+        "tags": ["Recipes"],
+        "summary": "Remove ingredient from recipe",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          },
+          {
+            "name": "ingredient_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ingredient removed",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Recipe" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/search-ingredients": {
+      "post": {
+        "tags": ["Recipes"],
+        "summary": "Search for ingredients",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SearchIngredientsRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SearchIngredientsResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/usda/food/{fdc_id}": {
+      "get": {
+        "tags": ["USDA"],
+        "summary": "Get food details by FDC ID",
+        "parameters": [
+          {
+            "name": "fdc_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Food details",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/usda/search": {
+      "post": {
+        "tags": ["USDA"],
+        "summary": "Search for foods",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Recipe": {
+        "type": "object",
+        "required": ["id", "name", "cuisine", "ingredients", "total_calories"],
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "cuisine": { "type": "string", "enum": ["MEXICAN", "AMERICAN", "ITALIAN", "ASIAN", "INDIAN", "MEDITERRANEAN", "THAI", "JAPANESE", "FRENCH", "GREEK", "MIDDLE_EASTERN", "CARIBBEAN", "AFRICAN", "OTHER"] },
+          "description": { "type": "string" },
+          "ingredients": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/RecipeIngredient" }
+          },
+          "total_calories": { "type": "number" },
+          "total_protein": { "type": "number" },
+          "total_fat": { "type": "number" },
+          "total_carbs": { "type": "number" },
+          "total_fiber": { "type": "number" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "RecipeIngredient": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "ingredient": { "$ref": "#/components/schemas/Ingredient" },
+          "quantity_grams": { "type": "number" },
+          "calories": { "type": "number" },
+          "protein": { "type": "number" },
+          "fat": { "type": "number" },
+          "carbs": { "type": "number" },
+          "fiber": { "type": "number" }
+        }
+      },
+      "Ingredient": {
+        "type": "object",
+        "properties": {
+          "usda_fdc_id": { "type": "integer" },
+          "name": { "type": "string" },
+          "data_type": { "type": "string" },
+          "brand_owner": { "type": "string" },
+          "calories_per_100g": { "type": "number" },
+          "protein_per_100g": { "type": "number" },
+          "fat_per_100g": { "type": "number" },
+          "carbs_per_100g": { "type": "number" },
+          "fiber_per_100g": { "type": "number" }
+        }
+      },
+      "RecipeCreate": {
+        "type": "object",
+        "required": ["name", "cuisine"],
+        "properties": {
+          "name": { "type": "string" },
+          "cuisine": { "type": "string" },
+          "description": { "type": "string" },
+          "ingredients": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/IngredientInput" }
+          }
+        }
+      },
+      "RecipeUpdate": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "cuisine": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      },
+      "IngredientInput": {
+        "type": "object",
+        "required": ["usda_fdc_id", "quantity_grams"],
+        "properties": {
+          "usda_fdc_id": { "type": "integer" },
+          "quantity_grams": { "type": "number" }
+        }
+      },
+      "SearchIngredientsRequest": {
+        "type": "object",
+        "required": ["query"],
+        "properties": {
+          "query": { "type": "string" },
+          "limit": { "type": "integer", "default": 20 },
+          "data_type": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "brand_owner": { "type": "string" },
+          "trade_channel": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "SearchIngredientsResponse": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Ingredient" }
+          },
+          "total": { "type": "integer" }
+        }
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Missing or invalid authentication",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "detail": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "detail": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

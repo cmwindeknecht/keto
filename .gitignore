@@ -99,6 +99,7 @@ Thumbs.db
 # Claude Code
 CLAUDE.md
 .claude/
+install.cmd
 
 # OS
 .DS_Store
