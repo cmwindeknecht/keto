@@ -1,23 +1,23 @@
 # Docker Configuration
 
-This directory contains all Dockerfiles for the Steam Analytics platform.
+This directory contains all Dockerfiles for the Keto Recipe API.
 
 ## Dockerfiles
 
 ### [backend-fastapi.Dockerfile](backend-fastapi.Dockerfile)
-Python FastAPI service for Steam API integration and ML analysis.
+Python FastAPI service for USDA API integration and recipe management.
 - Base: `python:3.11-slim`
 - Port: 8000
 - Features: Hot reload enabled for development
 
 ### [backend-go.Dockerfile](backend-go.Dockerfile)
-Go API Gateway for public API and rate limiting.
+Go API Gateway for recipe API and rate limiting.
 - Base: `golang:1.21-alpine` (builder) → `alpine:latest` (runtime)
 - Port: 8080
 - Features: Multi-stage build for minimal image size
 
 ### [frontend-react.Dockerfile](frontend-react.Dockerfile)
-React TypeScript frontend application.
+React TypeScript frontend for recipe builder and search.
 - Base: `node:20-alpine`
 - Port: 3000 (dev) / 80 (prod)
 - Features: Multi-stage build with development and production targets

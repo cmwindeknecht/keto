@@ -1,73 +1,76 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Float, UniqueConstraint
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Enum as SQLEnum, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.db.database import Base
 
 
 class Cuisine(str, Enum):
-    """Cuisine types for recipes."""
-    MEXICAN = "Mexican"
-    AMERICAN = "American"
-    ITALIAN = "Italian"
-    ASIAN = "Asian"
-    INDIAN = "Indian"
-    MEDITERRANEAN = "Mediterranean"
-    THAI = "Thai"
-    JAPANESE = "Japanese"
-    FRENCH = "French"
-    GREEK = "Greek"
-    MIDDLE_EASTERN = "Middle Eastern"
-    CARIBBEAN = "Caribbean"
-    AFRICAN = "African"
-    OTHER = "Other"
+    """Cuisine types for recipes. Serializes cleanly to JSON."""
+    MEXICAN = "MEXICAN"
+    AMERICAN = "AMERICAN"
+    ITALIAN = "ITALIAN"
+    ASIAN = "ASIAN"
+    INDIAN = "INDIAN"
+    MEDITERRANEAN = "MEDITERRANEAN"
+    THAI = "THAI"
+    JAPANESE = "JAPANESE"
+    FRENCH = "FRENCH"
+    GREEK = "GREEK"
+    MIDDLE_EASTERN = "MIDDLE_EASTERN"
+    CARIBBEAN = "CARIBBEAN"
+    AFRICAN = "AFRICAN"
+    OTHER = "OTHER"
 
 
 class Recipe(Base):
-    """Recipe model for storing user-created recipes."""
+    """
+    Recipe model for storing user-created recipes.
+
+    Ingredients are referenced by USDA FDC ID, with nutrition data fetched from Redis cache.
+    Nutrients are calculated on-the-fly from cached ingredient data:
+    - Get all recipe_ingredients (with usda_fdc_id and quantity_grams)
+    - Look up each ingredient from Redis (30-day TTL)
+    - Multiply nutrient values by (quantity_grams / 100) to get contribution
+    - Sum for recipe totals
+    - Divide by servings for per-serving values
+    """
     __tablename__ = "recipes"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False, index=True)
-    cuisine = Column(String, nullable=False, default=Cuisine.OTHER)
+    cuisine = Column(SQLEnum(Cuisine), nullable=False, default=Cuisine.OTHER)
     description = Column(String, nullable=True)
+    servings = Column(Integer, nullable=False, default=1)
+    rating = Column(Integer, nullable=False, default=0)  # 0-100 keto rating
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     recipe_ingredients = relationship("RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan")
 
 
-class Ingredient(Base):
-    """Ingredient model storing nutrition data from USDA FoodData Central."""
-    __tablename__ = "ingredients"
-
-    id = Column(Integer, primary_key=True, index=True)
-    usda_fdc_id = Column(String, unique=True, nullable=False, index=True)
-    name = Column(String, nullable=False, index=True)
-    calories_per_100g = Column(Float, nullable=False)
-    protein_per_100g = Column(Float, nullable=False)
-    fat_per_100g = Column(Float, nullable=False)
-    carbs_per_100g = Column(Float, nullable=False)
-    fiber_per_100g = Column(Float, nullable=False, default=0.0)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
-    recipe_ingredients = relationship("RecipeIngredient", back_populates="ingredient", cascade="all, delete-orphan")
-
-
 class RecipeIngredient(Base):
-    """Junction table for recipes and ingredients with quantity information."""
+    """
+    Junction table linking recipes to ingredients (by USDA FDC ID) with quantity information.
+
+    Stores usda_fdc_id directly instead of a foreign key, since ingredient data
+    is cached in Redis, not persisted in the database.
+
+    quantity_grams is always in grams (standardized).
+    To calculate ingredient contribution to recipe:
+    - Fetch ingredient from Redis by usda_fdc_id
+    - nutrient_contribution = ingredient_nutrient_per_100g * (quantity_grams / 100)
+    """
     __tablename__ = "recipe_ingredients"
 
     id = Column(Integer, primary_key=True, index=True)
     recipe_id = Column(Integer, ForeignKey("recipes.id"), nullable=False)
-    ingredient_id = Column(Integer, ForeignKey("ingredients.id"), nullable=False)
-    quantity_grams = Column(Float, nullable=False)
+    usda_fdc_id = Column(Integer, nullable=False)  # Reference to USDA FoodData Central ID
+    quantity_grams = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     recipe = relationship("Recipe", back_populates="recipe_ingredients")
-    ingredient = relationship("Ingredient", back_populates="recipe_ingredients")
 
-    __table_args__ = (UniqueConstraint("recipe_id", "ingredient_id", name="unique_recipe_ingredient"),)
+    __table_args__ = (UniqueConstraint("recipe_id", "usda_fdc_id", name="unique_recipe_ingredient"),)

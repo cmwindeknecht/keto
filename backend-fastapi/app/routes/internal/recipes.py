@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
@@ -22,7 +22,18 @@ router = APIRouter(
     summary="Create a new recipe",
 )
 async def create_recipe(
-    request: RecipeCreate,
+    request: RecipeCreate = Body(
+        ...,
+        example={
+            "name": "Cabbage and Cheese",
+            "cuisine": "MEXICAN",
+            "description": "cabbage and cheese shit",
+            "ingredients": [
+                {"usda_fdc_id": 2406937, "quantity_grams": 200},
+                {"usda_fdc_id": 2057648, "quantity_grams": 100}
+            ]
+        }
+    ),
     session: AsyncSession = Depends(get_db),
 ) -> RecipeResponse:
     """Create a new recipe with ingredients."""
@@ -124,22 +135,43 @@ async def remove_ingredient_from_recipe(
 async def search_ingredients(
     request: SearchIngredientsRequest,
 ) -> SearchIngredientsResponse:
-    """Search for ingredients in USDA FoodData Central database."""
-    results = await usda_service.search_ingredients(request.query, request.limit)
+    """
+    Search for ingredients in USDA FoodData Central database.
+
+    Supports filtering by:
+    - data_type: Foundation, SR Legacy, Survey (FNDDS), Branded
+    - brand_owner: Brand name (for branded foods)
+    - trade_channel: Distribution channel (e.g., GROCERY, CHILD_NUTRITION_FOOD_PROGRAMS)
+    """
+    results = await usda_service.search_ingredients(
+        query=request.query,
+        limit=request.limit,
+        data_type=request.data_type,
+        brand_owner=request.brand_owner,
+        trade_channel=request.trade_channel,
+    )
+
     ingredients = []
     for result in results:
-        # Map USDA API response to IngredientResponse
-        nutrients = {nutrient.get("nutrientId"): nutrient.get("value", 0) for nutrient in result.get("foodNutrients", [])}
+        # Transform USDA response to IngredientResponse using the cached ingredient transformer
+        from app.services.cache.transformers import transform_usda_response_to_cached_ingredient
+        cached_ingredient = transform_usda_response_to_cached_ingredient(result)
+
+        # Extract nutrient values
+        nutrients_dict = {n.nutrient_type: n.amount for n in cached_ingredient.nutrients}
+
         ingredients.append(
             IngredientResponse(
-                id=0,  # Not yet in database
-                usda_fdc_id=result.get("fdcId", ""),
-                name=result.get("description", "Unknown"),
-                calories_per_100g=nutrients.get(1008, 0),
-                protein_per_100g=nutrients.get(1003, 0),
-                fat_per_100g=nutrients.get(1004, 0),
-                carbs_per_100g=nutrients.get(1005, 0),
-                fiber_per_100g=nutrients.get(1079, 0),
+                usda_fdc_id=cached_ingredient.fdc_id,
+                name=cached_ingredient.name,
+                data_type=cached_ingredient.data_type,
+                brand_owner=cached_ingredient.brand_owner,
+                calories_per_100g=nutrients_dict.get("calories", 0),
+                protein_per_100g=nutrients_dict.get("protein", 0),
+                fat_per_100g=nutrients_dict.get("fat", 0),
+                carbs_per_100g=nutrients_dict.get("carbs", 0),
+                fiber_per_100g=nutrients_dict.get("fiber", 0),
             )
         )
+
     return SearchIngredientsResponse(results=ingredients, total=len(ingredients))

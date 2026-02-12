@@ -52,7 +52,7 @@ shell-react: ## Open shell in React container
 	docker-compose exec frontend-react /bin/sh
 
 db-shell: ## Open PostgreSQL shell
-	docker-compose exec postgres psql -U postgres -d steamanalytics
+	docker-compose exec postgres psql -U postgres -d keto
 
 redis-shell: ## Open Redis CLI
 	docker-compose exec redis redis-cli

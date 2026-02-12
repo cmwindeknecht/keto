@@ -1,5 +1,5 @@
-# Steam Analytics
-Steam Analytics Site 
+# Keto Recipe API
+Keto Recipe API with USDA FoodData Central Integration 
 
 # Planned Stack
 Languages: Python + FastAPI, Go, Yaml

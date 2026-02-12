@@ -1,14 +1,10 @@
 # Docker Setup Guide
 
-Complete Docker configuration for the Steam Analytics platform.
+Complete Docker configuration for the Keto Recipe API.
 
 ## Quick Start
 
 1. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your STEAM_API_KEY
-   ```
 
 2. **Start all services**
    ```bash
@@ -32,8 +28,8 @@ Complete Docker configuration for the Steam Analytics platform.
 
 ### Application Services
 - **FastAPI Backend** → [localhost:8000](http://localhost:8000)
-  - Steam API integration
-  - ML analysis
+  - USDA FoodData Central API integration
+  - Recipe management
   - Postgres, Redis, Kafka, Elasticsearch integration
 
 - **Go API Gateway** → [localhost:8080](http://localhost:8080)
@@ -42,12 +38,12 @@ Complete Docker configuration for the Steam Analytics platform.
   - Proxies to FastAPI
 
 - **React Frontend** → [localhost:3000](http://localhost:3000)
-  - Game search & analytics UI
+  - Recipe search & management UI
   - Connects to Go Gateway
 
 ### Infrastructure Services
 - **Postgres** → localhost:5432
-  - Game data, reviews, prices
+  - Recipe data, ingredients, nutrition
   - Auto-initialized with schema
 
 - **Redis** → localhost:6379
@@ -158,7 +154,7 @@ docker-compose exec frontend-react npm test
 ```bash
 make db-shell
 # Or manually:
-docker-compose exec postgres psql -U postgres -d steamanalytics
+docker-compose exec postgres psql -U postgres -d keto
 ```
 
 ### Run Migrations

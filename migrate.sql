@@ -1,9 +1,9 @@
--- Keto Recipe API Database Schema
+DROP TABLE IF EXISTS recipe_ingredients;
+DROP TABLE IF EXISTS recipes;
+DROP TYPE IF EXISTS cuisine;
 
--- Create ENUM types
 CREATE TYPE cuisine AS ENUM ('MEXICAN', 'AMERICAN', 'ITALIAN', 'ASIAN', 'INDIAN', 'MEDITERRANEAN', 'THAI', 'JAPANESE', 'FRENCH', 'GREEK', 'MIDDLE_EASTERN', 'CARIBBEAN', 'AFRICAN', 'OTHER');
 
--- Recipes table
 CREATE TABLE recipes (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -15,7 +15,6 @@ CREATE TABLE recipes (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Recipe Ingredients junction table
 CREATE TABLE recipe_ingredients (
     id SERIAL PRIMARY KEY,
     recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
@@ -25,7 +24,6 @@ CREATE TABLE recipe_ingredients (
     CONSTRAINT unique_recipe_ingredient UNIQUE(recipe_id, usda_fdc_id)
 );
 
--- Indexes for performance
 CREATE INDEX idx_recipes_name ON recipes(name);
 CREATE INDEX idx_recipes_cuisine ON recipes(cuisine);
 CREATE INDEX idx_recipe_ingredients_recipe_id ON recipe_ingredients(recipe_id);

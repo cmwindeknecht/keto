@@ -8,7 +8,7 @@ from app.db.models import Cuisine
 class RecipeIngredientInput(BaseModel):
     """Input for adding an ingredient to a recipe."""
 
-    usda_fdc_id: str = Field(..., description="USDA FoodData Central ID of the ingredient")
+    usda_fdc_id: int = Field(..., description="USDA FoodData Central ID of the ingredient")
     quantity_grams: float = Field(..., gt=0, description="Quantity of ingredient in grams")
 
 
@@ -33,4 +33,13 @@ class SearchIngredientsRequest(BaseModel):
     """Request to search for ingredients in USDA database."""
 
     query: str = Field(..., min_length=1, description="Ingredient name or keyword to search")
+    data_type: Optional[list[str]] = Field(
+        None,
+        description="Filter by data type: Foundation, SR Legacy, Survey (FNDDS), Branded"
+    )
+    brand_owner: Optional[str] = Field(None, description="Filter by brand owner name (for branded foods)")
+    trade_channel: Optional[list[str]] = Field(
+        None,
+        description="Filter by trade channel: CHILD_NUTRITION_FOOD_PROGRAMS, GROCERY, etc."
+    )
     limit: int = Field(default=20, ge=1, le=100, description="Maximum number of results")

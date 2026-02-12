@@ -4,13 +4,13 @@ services:
   # Database
   postgres:
     image: postgres:16-alpine
-    container_name: steamanalytics-postgres
+    container_name: keto-postgres
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: steamanalytics
+      POSTGRES_DB: keto
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ketodb
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/database_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
@@ -20,12 +20,12 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - steamanalytics
+      - keto
 
   # Cache
   redis:
     image: redis:7-alpine
-    container_name: steamanalytics-redis
+    container_name: keto-redis
     ports:
       - "6379:6379"
     volumes:
@@ -36,12 +36,12 @@ services:
       timeout: 3s
       retries: 5
     networks:
-      - steamanalytics
+      - keto
 
   # Message Queue - Zookeeper (required for Kafka)
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
-    container_name: steamanalytics-zookeeper
+    container_name: keto-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -49,12 +49,12 @@ services:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_logs:/var/lib/zookeeper/log
     networks:
-      - steamanalytics
+      - keto
 
   # Message Queue - Kafka
   kafka:
     image: confluentinc/cp-kafka:7.5.0
-    container_name: steamanalytics-kafka
+    container_name: keto-kafka
     depends_on:
       - zookeeper
     ports:
@@ -76,12 +76,12 @@ services:
       timeout: 10s
       retries: 5
     networks:
-      - steamanalytics
+      - keto
 
   # Search Engine
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    container_name: steamanalytics-elasticsearch
+    container_name: keto-elasticsearch
     ports:
       - "9200:9200"
       - "9300:9300"
@@ -97,12 +97,12 @@ services:
       timeout: 10s
       retries: 5
     networks:
-      - steamanalytics
+      - keto
 
   # Stream Processing
   flink-jobmanager:
     image: flink:1.18-scala_2.12
-    container_name: steamanalytics-flink-jobmanager
+    container_name: keto-flink-jobmanager
     ports:
       - "8081:8081"
     command: jobmanager
@@ -114,11 +114,11 @@ services:
     volumes:
       - flink_data:/opt/flink/data
     networks:
-      - steamanalytics
+      - keto
 
   flink-taskmanager:
     image: flink:1.18-scala_2.12
-    container_name: steamanalytics-flink-taskmanager
+    container_name: keto-flink-taskmanager
     depends_on:
       - flink-jobmanager
     command: taskmanager
@@ -129,22 +129,25 @@ services:
         taskmanager.numberOfTaskSlots: 2
         parallelism.default: 2
     networks:
-      - steamanalytics
+      - keto
 
   # FastAPI Backend
   backend-fastapi:
     build:
       context: .
       dockerfile: docker/backend-fastapi.Dockerfile
-    container_name: steamanalytics-backend-fastapi
+    container_name: keto-backend-fastapi
     ports:
       - "8000:8000"
+    env_file:
+      - .env
+      - .env.local
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/steamanalytics
+      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-keto}
       - REDIS_URL=redis://redis:6379
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - ELASTICSEARCH_URL=http://elasticsearch:9200
-      - STEAM_API_KEY=${STEAM_API_KEY}
+      - USDA_API_KEY=${USDA_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -157,7 +160,7 @@ services:
     volumes:
       - ./backend-fastapi:/app
     networks:
-      - steamanalytics
+      - keto
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   # Go API Gateway
@@ -165,7 +168,7 @@ services:
     build:
       context: .
       dockerfile: docker/backend-go.Dockerfile
-    container_name: steamanalytics-backend-go
+    container_name: keto-backend-go
     ports:
       - "8080:8080"
     environment:
@@ -178,14 +181,14 @@ services:
     volumes:
       - ./backend-go:/app
     networks:
-      - steamanalytics
+      - keto
 
   # React Frontend
   frontend-react:
     build:
       context: .
       dockerfile: docker/frontend-react.Dockerfile
-    container_name: steamanalytics-frontend-react
+    container_name: keto-frontend-react
     ports:
       - "3000:3000"
     environment:
@@ -197,7 +200,7 @@ services:
       - ./frontend-react:/app
       - /app/node_modules
     networks:
-      - steamanalytics
+      - keto
     stdin_open: true
     tty: true
 
@@ -211,5 +214,5 @@ volumes:
   flink_data:
 
 networks:
-  steamanalytics:
+  keto:
     driver: bridge

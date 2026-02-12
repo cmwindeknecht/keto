@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     # Environment
     ENVIRONMENT: str = "local"
 
-    # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/keto"
+    # Database (must be set via environment variable or .env file)
+    DATABASE_URL: str
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379"
@@ -34,7 +34,7 @@ class Settings(BaseSettings):
         URL.ALL_FOODS: FetchType.POST,
         URL.SEARCH: FetchType.POST
     }
-    USDA_API_BASE_URL: str = "https://fdc.nal.usda.gov/api"
+    USDA_API_BASE_URL: str = "https://api.nal.usda.gov/fdc"
 
     # Application
     APP_NAME: str = "Keto Recipe API"
