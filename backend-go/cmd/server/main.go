@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"keto-api/internal/cache"
 	"keto-api/internal/config"
+	"keto-api/internal/docs"
 	"keto-api/internal/middleware"
 	"keto-api/internal/proxy"
 )
@@ -48,21 +49,83 @@ func main() {
 	// Setup router
 	r := chi.NewRouter()
 
-	// Add middleware
+	// Add global middleware (must be before routes)
 	r.Use(middleware.LoggingMiddleware())
 
 	// Public endpoints (no auth required)
 	r.Get("/health", healthHandler)
 	r.Get("/", rootHandler)
-
-	// All other routes require auth and may use caching
-	r.Route("/*", func(router chi.Router) {
-		router.Use(middleware.AuthMiddleware(cfg))
-		if cfg.CacheEnabled {
-			router.Use(middleware.CacheMiddleware(cfg, rc))
-		}
-		router.Handle("/*", reverseProxy)
+	r.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
+		docs.SwaggerUIHandler(w, r)
 	})
+	r.Get("/swagger-ui/*", func(w http.ResponseWriter, r *http.Request) {
+		docs.SwaggerUIHandler(w, r)
+	})
+
+	// Protected routes group with auth and caching middleware
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware(cfg))
+		if cfg.CacheEnabled {
+			r.Use(middleware.CacheMiddleware(cfg, rc))
+		}
+
+	// BFF routes - map public endpoints to internal FastAPI endpoints
+	r.Get("/recipes", func(w http.ResponseWriter, r *http.Request) {
+		proxy.ProxyToInternal(reverseProxy, w, r, "/internal/recipes")
+	})
+	r.Post("/recipes", func(w http.ResponseWriter, r *http.Request) {
+		proxy.ProxyToInternal(reverseProxy, w, r, "/internal/recipes")
+	})
+	r.Get("/recipes/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		proxy.ProxyToInternal(reverseProxy, w, r, "/internal/recipes/"+id)
+	})
+	r.Put("/recipes/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		proxy.ProxyToInternal(reverseProxy, w, r, "/internal/recipes/"+id)
+	})
+	r.Delete("/recipes/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		proxy.ProxyToInternal(reverseProxy, w, r, "/internal/recipes/"+id)
+	})
+	r.Post("/recipes/{id}/ingredients", func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		proxy.ProxyToInternal(reverseProxy, w, r, "/internal/recipes/"+id+"/ingredients")
+	})
+	r.Delete("/recipes/{id}/ingredients/{ingredient_id}", func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		ingredientID := chi.URLParam(r, "ingredient_id")
+		proxy.ProxyToInternal(reverseProxy, w, r, "/internal/recipes/"+id+"/ingredients/"+ingredientID)
+	})
+	r.Post("/search-ingredients", func(w http.ResponseWriter, r *http.Request) {
+		proxy.ProxyToInternal(reverseProxy, w, r, "/internal/recipes/search-ingredients")
+	})
+
+	// USDA endpoints
+	r.Get("/usda/food/{fdc_id}", func(w http.ResponseWriter, r *http.Request) {
+		fdcID := chi.URLParam(r, "fdc_id")
+		proxy.ProxyToInternal(reverseProxy, w, r, "/internal/usda/food/"+fdcID)
+	})
+	r.Post("/usda/foods", func(w http.ResponseWriter, r *http.Request) {
+		proxy.ProxyToInternal(reverseProxy, w, r, "/internal/usda/foods")
+	})
+	r.Post("/usda/foods/list", func(w http.ResponseWriter, r *http.Request) {
+		proxy.ProxyToInternal(reverseProxy, w, r, "/internal/usda/foods/list")
+	})
+	r.Post("/usda/search", func(w http.ResponseWriter, r *http.Request) {
+		proxy.ProxyToInternal(reverseProxy, w, r, "/internal/usda/search")
+	})
+	r.Post("/usda/search/advanced", func(w http.ResponseWriter, r *http.Request) {
+		proxy.ProxyToInternal(reverseProxy, w, r, "/internal/usda/search/advanced")
+	})
+	r.Get("/usda/search-ingredients", func(w http.ResponseWriter, r *http.Request) {
+		proxy.ProxyToInternal(reverseProxy, w, r, "/internal/usda/search-ingredients")
+	})
+	r.Get("/usda/ingredient/{fdc_id}", func(w http.ResponseWriter, r *http.Request) {
+		fdcID := chi.URLParam(r, "fdc_id")
+		proxy.ProxyToInternal(reverseProxy, w, r, "/internal/usda/ingredient/"+fdcID)
+	})
+	}) // End protected routes group
 
 	// Create server
 	server := &http.Server{

@@ -7,6 +7,8 @@ require (
 	github.com/redis/go-redis/v9 v9.5.1
 	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/joho/godotenv v1.5.1
+	github.com/swaggo/swag v1.16.3
+	github.com/swaggo/files v1.0.1
 )
 
 require (

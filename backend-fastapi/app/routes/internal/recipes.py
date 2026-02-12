@@ -16,7 +16,7 @@ router = APIRouter(
 
 
 @router.post(
-    "/",
+    "",
     response_model=RecipeResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new recipe",
@@ -55,7 +55,7 @@ async def get_recipe(
 
 
 @router.get(
-    "/",
+    "",
     response_model=list[RecipeResponse],
     status_code=status.HTTP_200_OK,
     summary="List recipes",

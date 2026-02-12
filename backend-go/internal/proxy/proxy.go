@@ -93,6 +93,20 @@ func NewReverseProxy(cfg *config.Config) (*httputil.ReverseProxy, error) {
 	return proxy, nil
 }
 
+func ProxyToInternal(proxy *httputil.ReverseProxy, w http.ResponseWriter, r *http.Request, internalPath string) {
+	// Rewrite the request path to the internal endpoint
+	r.URL.Path = internalPath
+	r.RequestURI = ""
+
+	// Preserve query string
+	if r.URL.RawQuery != "" {
+		r.URL.RawQuery = r.URL.RawQuery
+	}
+
+	// Serve through the proxy
+	proxy.ServeHTTP(w, r)
+}
+
 func getClientIP(r *http.Request) string {
 	// Try X-Forwarded-For first (for proxied requests)
 	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {

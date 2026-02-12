@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 

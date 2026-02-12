@@ -48,7 +48,7 @@ class Recipe(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
-    recipe_ingredients = relationship("RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan")
+    recipe_ingredients = relationship("RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan", lazy="selectin")
 
 
 class RecipeIngredient(Base):

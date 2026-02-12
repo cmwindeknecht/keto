@@ -92,31 +92,42 @@ All other endpoints require authentication via:
 
 **API Key:**
 ```bash
-curl -H "X-API-Key: your-api-key" http://localhost:8080/internal/recipes
+curl -H "X-API-Key: your-api-key" http://localhost:8080/recipes
 ```
 
 **JWT Bearer Token:**
 ```bash
-curl -H "Authorization: Bearer <token>" http://localhost:8080/internal/recipes
+curl -H "Authorization: Bearer <token>" http://localhost:8080/recipes
 ```
 
-## Proxied Endpoints
+## BFF Endpoints
 
-All other routes are proxied to the FastAPI backend:
+The gateway exposes a clean public API that internally proxies to the FastAPI backend:
 
-- `GET /internal/recipes` - List recipes
-- `POST /internal/recipes` - Create recipe
-- `GET /internal/recipes/{id}` - Get recipe
-- `PUT /internal/recipes/{id}` - Update recipe
-- `DELETE /internal/recipes/{id}` - Delete recipe
-- `POST /internal/recipes/{id}/ingredients` - Add ingredient
-- `DELETE /internal/recipes/{id}/ingredients/{ingredient_id}` - Remove ingredient
-- `POST /internal/recipes/search-ingredients` - Search ingredients
-- `GET /internal/usda/food/{fdc_id}` - Get food details
-- `POST /internal/usda/foods` - Get multiple foods
-- `POST /internal/usda/foods/list` - List foods
-- `POST /internal/usda/search` - Search foods
-- `POST /internal/usda/search/advanced` - Advanced search
+**Recipe Management:**
+- `GET /recipes` - List recipes
+- `POST /recipes` - Create recipe
+- `GET /recipes/{id}` - Get recipe
+- `PUT /recipes/{id}` - Update recipe
+- `DELETE /recipes/{id}` - Delete recipe
+- `POST /recipes/{id}/ingredients` - Add ingredient
+- `DELETE /recipes/{id}/ingredients/{ingredient_id}` - Remove ingredient
+- `POST /search-ingredients` - Search ingredients
+
+**USDA Integration:**
+- `GET /usda/food/{fdc_id}` - Get food details
+- `POST /usda/foods` - Get multiple foods
+- `POST /usda/foods/list` - List foods
+- `POST /usda/search` - Search foods
+- `POST /usda/search/advanced` - Advanced search
+- `GET /usda/search-ingredients` - Search ingredients
+- `GET /usda/ingredient/{fdc_id}` - Get ingredient details
+
+**Frontend Integration Note:**
+The gateway maps these public endpoints to the internal FastAPI endpoints:
+- Frontend hits: `GET /recipes`
+- Gateway internally calls: `GET /internal/recipes`
+- Gateway returns response to frontend (no client knows about /internal)
 
 ## Response Headers
 
@@ -154,18 +165,31 @@ Only 200 responses are cached. To bypass cache, add `Cache-Control: no-cache` he
 
 ## Testing
 
+### Using Swagger UI (Recommended)
+Open your browser and navigate to:
+```
+http://localhost:8080/docs
+```
+
+This provides an interactive interface to test all endpoints with proper authentication headers.
+
+### Using cURL
+
 ```bash
 # Test health endpoint (no auth)
 curl http://localhost:8080/health
 
 # Test protected endpoint (no auth - should get 401)
-curl http://localhost:8080/internal/recipes
+curl http://localhost:8080/recipes
 
 # Test with API key
-curl -H "X-API-Key: test-key" http://localhost:8080/internal/recipes
+curl -H "X-API-Key: test-key" http://localhost:8080/recipes
 
 # Test with JWT (generate token first)
-curl -H "Authorization: Bearer <your-jwt-token>" http://localhost:8080/internal/recipes
+curl -H "Authorization: Bearer <your-jwt-token>" http://localhost:8080/recipes
+
+# Test caching - second request should have X-Cache: HIT
+curl -H "X-API-Key: test-key" http://localhost:8080/recipes -v
 ```
 
 ## Troubleshooting
