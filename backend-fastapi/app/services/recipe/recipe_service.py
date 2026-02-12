@@ -45,9 +45,9 @@ class RecipeService:
                     usda_fdc_id=ingredient_input.usda_fdc_id,
                     quantity_grams=ingredient_input.quantity_grams,
                 )
-                session.add(recipe_ingredient)
+                recipe.recipe_ingredients.append(recipe_ingredient)
 
-            await session.refresh(recipe, ["recipe_ingredients"])
+            await session.flush()
             await session.commit()
             return await self._recipe_to_response(recipe)
         except Exception as e:
@@ -200,8 +200,8 @@ class RecipeService:
                 usda_fdc_id=ingredient_input.usda_fdc_id,
                 quantity_grams=ingredient_input.quantity_grams,
             )
-            session.add(recipe_ingredient)
-            await session.refresh(recipe, ["recipe_ingredients"])
+            recipe.recipe_ingredients.append(recipe_ingredient)
+            await session.flush()
             await session.commit()
             return await self._recipe_to_response(recipe)
         except RecipeNotFoundError:
@@ -245,8 +245,8 @@ class RecipeService:
             if not recipe_ingredient:
                 raise IngredientNotFoundError(f"Ingredient {ingredient_id} not in recipe {recipe_id}")
 
-            await session.delete(recipe_ingredient)
-            await session.refresh(recipe, ["recipe_ingredients"])
+            recipe.recipe_ingredients.remove(recipe_ingredient)
+            await session.flush()
             await session.commit()
             return await self._recipe_to_response(recipe)
         except (RecipeNotFoundError, IngredientNotFoundError):
