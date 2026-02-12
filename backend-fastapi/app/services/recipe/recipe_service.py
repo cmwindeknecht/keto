@@ -47,8 +47,8 @@ class RecipeService:
                 )
                 session.add(recipe_ingredient)
 
-            await session.commit()
             await session.refresh(recipe, ["recipe_ingredients"])
+            await session.commit()
             return await self._recipe_to_response(recipe)
         except Exception as e:
             await session.rollback()
@@ -201,8 +201,8 @@ class RecipeService:
                 quantity_grams=ingredient_input.quantity_grams,
             )
             session.add(recipe_ingredient)
-            await session.commit()
             await session.refresh(recipe, ["recipe_ingredients"])
+            await session.commit()
             return await self._recipe_to_response(recipe)
         except RecipeNotFoundError:
             raise
@@ -211,7 +211,7 @@ class RecipeService:
             raise DatabaseError(f"Failed to add ingredient: {str(e)}")
 
     async def remove_ingredient_from_recipe(
-        self, session: AsyncSession, recipe_id: int, usda_fdc_id: int
+        self, session: AsyncSession, recipe_id: int, ingredient_id: int
     ) -> RecipeResponse:
         """
         Remove an ingredient from a recipe.
@@ -219,7 +219,7 @@ class RecipeService:
         Args:
             session: Database session
             recipe_id: ID of recipe
-            usda_fdc_id: USDA FDC ID of ingredient to remove
+            ingredient_id: ID of recipe_ingredient to remove (from RecipeIngredient.id)
 
         Returns:
             Updated recipe response
@@ -237,17 +237,17 @@ class RecipeService:
                 raise RecipeNotFoundError(f"Recipe with ID {recipe_id} not found")
 
             stmt = select(RecipeIngredient).where(
-                (RecipeIngredient.recipe_id == recipe_id) & (RecipeIngredient.usda_fdc_id == usda_fdc_id)
+                (RecipeIngredient.recipe_id == recipe_id) & (RecipeIngredient.id == ingredient_id)
             )
             result = await session.execute(stmt)
             recipe_ingredient = result.scalar_one_or_none()
 
             if not recipe_ingredient:
-                raise IngredientNotFoundError(f"Ingredient {usda_fdc_id} not in recipe {recipe_id}")
+                raise IngredientNotFoundError(f"Ingredient {ingredient_id} not in recipe {recipe_id}")
 
             await session.delete(recipe_ingredient)
-            await session.commit()
             await session.refresh(recipe, ["recipe_ingredients"])
+            await session.commit()
             return await self._recipe_to_response(recipe)
         except (RecipeNotFoundError, IngredientNotFoundError):
             raise
@@ -305,6 +305,7 @@ class RecipeService:
 
             recipe_ingredients.append(
                 RecipeIngredientResponse(
+                    id=recipe_ingredient.id,
                     ingredient=IngredientResponse(
                         usda_fdc_id=usda_fdc_id,
                         name=cached_ingredient.name,

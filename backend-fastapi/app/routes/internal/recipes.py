@@ -26,7 +26,7 @@ async def create_recipe(
         ...,
         example={
             "name": "Cabbage and Cheese",
-            "cuisine": "Mexican",
+            "cuisine": "MEXICAN",
             "description": "cabbage and cheese shit",
             "ingredients": [
                 {"usda_fdc_id": 2406937, "quantity_grams": 200},

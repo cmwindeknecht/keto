@@ -3,7 +3,7 @@
 ## ✅ Completed
 - Project structure setup (FastAPI, Go, React scaffolding)
 - Docker Compose base config
-- **[PIVOT] Switched from Steam Analytics to Keto Recipe App**
+- **[PIVOT] Switched from Steam Analytics to Keto Recipe API**
 - FastAPI backend API design & structure:
   - USDA FoodData Central API integration service
   - Recipe CRUD service with nutrition calculation

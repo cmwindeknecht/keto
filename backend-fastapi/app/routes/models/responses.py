@@ -23,6 +23,7 @@ class IngredientResponse(BaseModel):
 class RecipeIngredientResponse(BaseModel):
     """Ingredient with quantity and calculated nutrition for a recipe."""
 
+    id: int = Field(..., description="RecipeIngredient ID for deletion")
     ingredient: IngredientResponse = Field(..., description="Ingredient details")
     quantity_grams: float = Field(..., description="Quantity in grams")
     calories: float = Field(..., description="Total calories for this quantity")

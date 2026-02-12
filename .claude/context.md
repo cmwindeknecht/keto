@@ -4,8 +4,7 @@
 
 - Ultimate Goal: Flesh out recipe_service.py
 - Directory: backend-fastapi
-- Current: Redis Cache for USDA
+- Current: Redis Cache for USDA impl done, need to setup local postgres to test everything
 - Next:
-    - Hook up Recipe service to use USDA servoce to get ingredient data
     - Run SQL migrations to create relevant tables based on models
     - Update Recipe service endpoints to utilize USDA / create DB

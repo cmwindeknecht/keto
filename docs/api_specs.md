@@ -1,53 +1,72 @@
 # API Specifications
 
-**Fill this in as you build endpoints**
+Keto Recipe API endpoints for recipe management and USDA ingredient search.
 
 ## Go API Gateway (Public Endpoints)
 
-### GET /api/games/search
-Query parameters:
-- `q` (string): Search query
-- `limit` (int): Max results (default: 20)
-- `offset` (int): Pagination offset
-
-Response:
-```json
-{
-  "games": [...],
-  "total": 150,
-  "limit": 20,
-  "offset": 0
-}
-```
-
-### GET /api/games/:id
-Response:
-```json
-{
-  "id": 1,
-  "steam_app_id": 570,
-  "name": "Dota 2",
-  "price_history": [...],
-  "reviews": {...}
-}
-```
-
-## FastAPI Internal Service
-
-### POST /internal/games/fetch
-Fetches game data from Steam API
+### POST /api/recipes
+Create a new recipe
 
 Request:
 ```json
 {
-  "steam_app_id": 570
+  "name": "Keto Burger",
+  "cuisine": "American",
+  "description": "Low carb burger",
+  "servings": 2,
+  "rating": 85,
+  "ingredients": [
+    {
+      "usda_fdc_id": 123456,
+      "quantity_grams": 150
+    }
+  ]
 }
 ```
+
+Response: Recipe object with calculated nutrition
+
+### GET /api/recipes/:id
+Get recipe by ID
+
+### GET /api/recipes
+List recipes with pagination
+
+Query params:
+- `skip`: Offset (default: 0)
+- `limit`: Max results (default: 20)
+- `cuisine`: Filter by cuisine
+
+### PUT /api/recipes/:id
+Update recipe
+
+### DELETE /api/recipes/:id
+Delete recipe
+
+### GET /api/ingredients/search
+Search USDA FoodData Central for ingredients
+
+Query params:
+- `q`: Search query
+- `limit`: Max results (default: 10)
 
 Response:
 ```json
 {
-  "success": true,
-  "game_id": 1
+  "foods": [
+    {
+      "fdcId": 123456,
+      "description": "Beef, ground",
+      "dataType": "Survey (FNDDS)"
+    }
+  ]
 }
 ```
+
+## FastAPI (Internal Endpoints)
+
+### POST /internal/usda/search
+Search USDA FoodData Central API
+
+### GET /internal/recipes/health
+Health check endpoint

@@ -131,6 +131,7 @@ build/
 *.crt
 .env
 .env.*.local
+.env.docker
 .env.production.local
 .env.development.local
 .env.test.local
