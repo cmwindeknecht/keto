@@ -6,46 +6,42 @@ from pydantic import BaseModel, Field
 from app.db.models import Cuisine
 
 
+class NutrientInfo(BaseModel):
+    """Single nutrient with amount and unit."""
+
+    name: str = Field(..., description="Nutrient name (e.g., 'Protein', 'Total lipid (fat)')")
+    amount: float = Field(..., description="Amount of nutrient")
+    unit: str = Field(..., description="Unit of measurement (e.g., 'g', 'kcal')")
+
+
 class IngredientResponse(BaseModel):
-    """Ingredient response model with nutrition information."""
+    """Ingredient response model with per-100g nutrition information."""
 
     usda_fdc_id: int = Field(..., description="USDA FoodData Central ID")
     name: str = Field(..., description="Ingredient name")
     data_type: Optional[str] = Field(None, description="Data type: Foundation, SR Legacy, Survey (FNDDS), Branded")
     brand_owner: Optional[str] = Field(None, description="Brand owner (for branded foods)")
-    calories_per_100g: float = Field(..., description="Calories per 100g")
-    protein_per_100g: float = Field(..., description="Protein (g) per 100g")
-    fat_per_100g: float = Field(..., description="Fat (g) per 100g")
-    carbs_per_100g: float = Field(..., description="Carbs (g) per 100g")
-    fiber_per_100g: float = Field(..., description="Fiber (g) per 100g")
+    nutrients: list[NutrientInfo] = Field(..., description="All nutrients per 100g")
 
 
 class RecipeIngredientResponse(BaseModel):
-    """Ingredient with quantity and calculated nutrition for a recipe."""
+    """Ingredient with quantity and scaled nutrition for a recipe."""
 
     id: int = Field(..., description="RecipeIngredient ID for deletion")
-    ingredient: IngredientResponse = Field(..., description="Ingredient details")
+    ingredient: IngredientResponse = Field(..., description="Ingredient details (per 100g)")
     quantity_grams: float = Field(..., description="Quantity in grams")
-    calories: float = Field(..., description="Total calories for this quantity")
-    protein: float = Field(..., description="Total protein (g) for this quantity")
-    fat: float = Field(..., description="Total fat (g) for this quantity")
-    carbs: float = Field(..., description="Total carbs (g) for this quantity")
-    fiber: float = Field(..., description="Total fiber (g) for this quantity")
+    nutrients: list[NutrientInfo] = Field(..., description="Scaled nutrients for this quantity")
 
 
 class RecipeResponse(BaseModel):
-    """Recipe response model with ingredients and totals."""
+    """Recipe response model with ingredients and complete nutrient breakdown."""
 
     id: int = Field(..., description="Database ID")
     name: str = Field(..., description="Recipe name")
     cuisine: Cuisine = Field(..., description="Cuisine type")
     description: Optional[str] = Field(None, description="Recipe description")
     ingredients: list[RecipeIngredientResponse] = Field(..., description="Recipe ingredients with nutrition")
-    total_calories: float = Field(..., description="Total calories in recipe")
-    total_protein: float = Field(..., description="Total protein (g) in recipe")
-    total_fat: float = Field(..., description="Total fat (g) in recipe")
-    total_carbs: float = Field(..., description="Total carbs (g) in recipe")
-    total_fiber: float = Field(..., description="Total fiber (g) in recipe")
+    nutrients: list[NutrientInfo] = Field(..., description="Total nutrients summed across all ingredients")
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
 

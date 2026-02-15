@@ -13,47 +13,49 @@ type RedisClient struct {
 }
 
 func NewRedisClient(redisURL string) (*RedisClient, error) {
-	opts, err := redis.ParseURL("redis://" + redisURL)
-	if err != nil {
-		return nil, fmt.Errorf("invalid redis URL: %w", err)
+	redisOptions, parseURLError := redis.ParseURL("redis://" + redisURL)
+	if parseURLError != nil {
+		return nil, fmt.Errorf("invalid redis URL: %w", parseURLError)
 	}
 
-	client := redis.NewClient(opts)
+	client := redis.NewClient(redisOptions)
 
-	// Test connection
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// Test connectionContext
+	// context --- timed operation that allows you to cancel, have timeouts, and pass metadata
+	connectionContext, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := client.Ping(ctx).Err(); err != nil {
-		return nil, fmt.Errorf("failed to connect to redis: %w", err)
+	clientPingError := client.Ping(connectionContext).Err()
+	if clientPingError != nil {
+		return nil, fmt.Errorf("failed to connect to redis: %w", clientPingError)
 	}
 
 	return &RedisClient{client: client}, nil
 }
 
-func (rc *RedisClient) Get(ctx context.Context, key string) ([]byte, error) {
-	val, err := rc.client.Get(ctx, key).Result()
-	if err == redis.Nil {
+func (redisClient *RedisClient) Get(redisContext context.Context, key string) ([]byte, error) {
+	value, getError := redisClient.client.Get(redisContext, key).Result()
+	if getError == redis.Nil {
 		return nil, nil
 	}
-	if err != nil {
-		return nil, err
+	if getError != nil {
+		return nil, getError
 	}
-	return []byte(val), nil
+	return []byte(value), nil
 }
 
-func (rc *RedisClient) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
-	return rc.client.Set(ctx, key, value, ttl).Err()
+func (redisClient *RedisClient) Set(redisContext context.Context, key string, value []byte, ttl time.Duration) error {
+	return redisClient.client.Set(redisContext, key, value, ttl).Err()
 }
 
-func (rc *RedisClient) Delete(ctx context.Context, key string) error {
-	return rc.client.Del(ctx, key).Err()
+func (redisClient *RedisClient) Delete(redisContext context.Context, key string) error {
+	return redisClient.client.Del(redisContext, key).Err()
 }
 
-func (rc *RedisClient) HealthCheck(ctx context.Context) error {
-	return rc.client.Ping(ctx).Err()
+func (redisClient *RedisClient) HealthCheck(redisContext context.Context) error {
+	return redisClient.client.Ping(redisContext).Err()
 }
 
-func (rc *RedisClient) Close() error {
-	return rc.client.Close()
+func (redisClient *RedisClient) Close() error {
+	return redisClient.client.Close()
 }
