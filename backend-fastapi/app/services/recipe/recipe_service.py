@@ -7,8 +7,10 @@ from sqlalchemy.orm import selectinload
 from app.core.exceptions import RecipeNotFoundError, IngredientNotFoundError, DatabaseError
 from app.db.models import Recipe, RecipeIngredient
 from app.routes.models.requests import RecipeCreate, RecipeUpdate, RecipeIngredientInput
-from app.routes.models.responses import RecipeResponse, RecipeIngredientResponse, IngredientResponse
+from app.routes.models.responses import RecipeResponse, RecipeIngredientResponse, IngredientResponse, NutrientInfo
 from app.services.usda.usda_service import usda_service
+from app.services.usda.models.requests import FoodsByFdcID
+from app.services.usda.utils import extract_all_nutrients, calculate_proportional_nutrients, sum_nutrients
 
 
 class RecipeService:
@@ -261,70 +263,75 @@ class RecipeService:
         """
         Convert Recipe ORM model to RecipeResponse with calculated nutrition totals.
 
-        Fetches ingredient data from Redis cache for each recipe ingredient.
+        Fetches ingredient data from cache/USDA, extracts nutrients, and calculates totals on-the-fly.
 
         Args:
             recipe: Recipe ORM model
 
         Returns:
-            Recipe response with ingredients and nutrition totals
+            Recipe response with ingredients and complete nutrient breakdown
         """
+        # Fetch ingredient data from cache/USDA
+        fdc_ids = [ri.usda_fdc_id for ri in recipe.recipe_ingredients]
+        if not fdc_ids:
+            return RecipeResponse(
+                id=recipe.id,
+                name=recipe.name,
+                cuisine=recipe.cuisine,
+                description=recipe.description,
+                ingredients=[],
+                nutrients=[],
+                created_at=recipe.created_at,
+                updated_at=recipe.updated_at,
+            )
+
+        criteria = FoodsByFdcID(fdc_ids=fdc_ids)
+        usda_results = await usda_service.search_by_fdcids(criteria)
+
+        # Map results by FDC ID
+        usda_map = {item["fdcId"]: item for item in usda_results}
+
         recipe_ingredients = []
-        total_calories = 0
-        total_protein = 0
-        total_fat = 0
-        total_carbs = 0
-        total_fiber = 0
+        all_nutrients = []
 
         for recipe_ingredient in recipe.recipe_ingredients:
             usda_fdc_id = recipe_ingredient.usda_fdc_id
             quantity_grams = recipe_ingredient.quantity_grams
 
-            # Fetch ingredient from cache
-            cached_ingredient = await usda_service.get_ingredient_with_cache(usda_fdc_id)
+            usda_data = usda_map.get(usda_fdc_id)
+            if not usda_data:
+                continue
 
-            # Extract nutrients from cached data
-            nutrients_dict = {n.nutrient_type: n.amount for n in cached_ingredient.nutrients}
-            calories = nutrients_dict.get("calories", 0)
-            protein = nutrients_dict.get("protein", 0)
-            fat = nutrients_dict.get("fat", 0)
-            carbs = nutrients_dict.get("carbs", 0)
-            fiber = nutrients_dict.get("fiber", 0)
+            # Extract per-100g nutrients
+            per_100g_nutrients = extract_all_nutrients(usda_data)
 
-            # Calculate contribution based on quantity
-            ratio = quantity_grams / 100
-            calories *= ratio
-            protein *= ratio
-            fat *= ratio
-            carbs *= ratio
-            fiber *= ratio
+            # Scale to actual quantity
+            scaled_nutrients = calculate_proportional_nutrients(
+                per_100g_nutrients,
+                quantity_grams
+            )
 
-            total_calories += calories
-            total_protein += protein
-            total_fat += fat
-            total_carbs += carbs
-            total_fiber += fiber
+            # Add to total
+            all_nutrients.append(scaled_nutrients)
 
+            # Build response
             recipe_ingredients.append(
                 RecipeIngredientResponse(
                     id=recipe_ingredient.id,
                     ingredient=IngredientResponse(
                         usda_fdc_id=usda_fdc_id,
-                        name=cached_ingredient.name,
-                        calories_per_100g=nutrients_dict.get("calories", 0),
-                        protein_per_100g=nutrients_dict.get("protein", 0),
-                        fat_per_100g=nutrients_dict.get("fat", 0),
-                        carbs_per_100g=nutrients_dict.get("carbs", 0),
-                        fiber_per_100g=nutrients_dict.get("fiber", 0),
+                        name=usda_data.get("description", "Unknown"),
+                        data_type=usda_data.get("dataType"),
+                        brand_owner=usda_data.get("brandOwner"),
+                        nutrients=per_100g_nutrients,
                     ),
                     quantity_grams=quantity_grams,
-                    calories=calories,
-                    protein=protein,
-                    fat=fat,
-                    carbs=carbs,
-                    fiber=fiber,
+                    nutrients=scaled_nutrients,
                 )
             )
+
+        # Sum nutrients across all ingredients
+        total_nutrients = sum_nutrients(all_nutrients)
 
         return RecipeResponse(
             id=recipe.id,
@@ -332,11 +339,7 @@ class RecipeService:
             cuisine=recipe.cuisine,
             description=recipe.description,
             ingredients=recipe_ingredients,
-            total_calories=total_calories,
-            total_protein=total_protein,
-            total_fat=total_fat,
-            total_carbs=total_carbs,
-            total_fiber=total_fiber,
+            nutrients=total_nutrients,
             created_at=recipe.created_at,
             updated_at=recipe.updated_at,
         )

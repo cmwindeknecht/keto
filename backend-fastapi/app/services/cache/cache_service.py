@@ -1,10 +1,13 @@
 """Service for managing Redis cache operations."""
 
 import json
+import logging
 from typing import Optional
 import redis.asyncio as redis
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class CacheService:
@@ -82,8 +85,16 @@ class CacheService:
         if not self._redis_client:
             await self.connect()
 
-        key = self._get_ingredient_key(ingredient['fdcId'])
+        fdc_id = ingredient['fdcId']
+        key = self._get_ingredient_key(fdc_id)
         ttl = self.TTL_STRATEGY.get(ingredient.get('dataType'), 30 * 86400)
+        food_nutrients = ingredient.get('foodNutrients', [])
+
+        logger.info(f"Caching ingredient {fdc_id} ({ingredient.get('description', 'unknown')})")
+        logger.debug(f"Data type: {ingredient.get('dataType')}, TTL: {ttl} seconds")
+        logger.debug(f"Food nutrients count: {len(food_nutrients)}")
+        if food_nutrients:
+            logger.debug(f"First nutrient: {json.dumps(food_nutrients[0], indent=2, default=str)}")
 
         try:
             if ttl:
@@ -91,7 +102,7 @@ class CacheService:
             else:
                 await self._redis_client.set(key, json.dumps(ingredient))
         except Exception as e:
-            print(f"Error caching ingredient {ingredient['fdcId']}: {e}")
+            logger.error(f"Error caching ingredient {fdc_id}: {e}")
 
     async def clear_all_ingredients(self) -> int:
         """

@@ -154,7 +154,7 @@ services:
       kafka:
         condition: service_started
       elasticsearch:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - ./backend-fastapi:/app
     networks:
@@ -166,6 +166,65 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  # Elasticsearch Indexer Worker
+  worker-elasticsearch:
+    build:
+      context: .
+      dockerfile: docker/backend-fastapi.Dockerfile
+    container_name: keto-worker-elasticsearch
+    env_file:
+      - .env
+      - .env.local
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-keto}
+      - REDIS_URL=redis://redis:6379
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    depends_on:
+      kafka:
+        condition: service_started
+      elasticsearch:
+        condition: service_started
+      redis:
+        condition: service_started
+    volumes:
+      - ./backend-fastapi:/app
+    networks:
+      - keto
+    command: python -m workers.elasticsearch_consumer
+    restart: unless-stopped
+
+  # Ingredient Refresh Cronjob (runs daily at 2am)
+  cronjob-refresh:
+    build:
+      context: .
+      dockerfile: docker/backend-fastapi.Dockerfile
+    container_name: keto-cronjob-refresh
+    env_file:
+      - .env
+      - .env.local
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-keto}
+      - REDIS_URL=redis://redis:6379
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    depends_on:
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      elasticsearch:
+        condition: service_started
+    volumes:
+      - ./backend-fastapi:/app
+    networks:
+      - keto
+    command: >
+      sh -c "while true; do
+        python -m cronjobs.refresh_ingredients;
+        sleep 86400;
+      done"
+    restart: unless-stopped
 
   # Go API Gateway
   backend-go:

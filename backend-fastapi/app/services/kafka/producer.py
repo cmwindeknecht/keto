@@ -4,6 +4,7 @@ import json
 from typing import Optional
 from aiokafka import AIOKafkaProducer
 from pydantic import BaseModel
+from app.services.kafka.models import IngredientCached
 
 from app.core.config import settings
 

@@ -1,9 +1,16 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 from app.db.database import db_manager
 from app.services.cache.cache_service import cache_service
 from app.services.elasticsearch.es_service import elasticsearch_service

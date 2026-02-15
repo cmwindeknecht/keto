@@ -3,6 +3,8 @@
 from functools import wraps
 from datetime import datetime
 import httpx
+import logging
+import json
 
 from app.core.config import settings
 from app.core.exceptions import USDAAPIError
@@ -12,6 +14,8 @@ from app.services.kafka.producer import kafka_producer
 from app.services.kafka.models import IngredientCached
 from .models.requests import FoodsByFdcID, FoodsByCriteria
 from .models.responses import SearchResult
+
+logger = logging.getLogger(__name__)
 
 
 def handle_usda_errors(func):
@@ -91,60 +95,33 @@ class USDAService:
                 return response.json()
 
     @handle_usda_errors
-    async def search_by_criteria(self, criteria: FoodsByCriteria, url: str = None) -> list[dict]:
-        """
-        Used to get food/ingredient details by user search criteria when FdcID is unknown
-        
-        Args:
-        - criteria: FoodsByCriteria for POST request with complex filters
-        - url: for error handling context
-
-        @Returns: list[dict] of food items matching search criteria with detailed information
-    
-        @Raises: USDAAPIError: If the API call fails
-        """
-        url = f"{self.base_url}{self.USDA_FOODS_SEARCH_ENDPOINT}"
-
-        async with httpx.AsyncClient(timeout=self.DEFAULT_TIMEOUT) as client:
-            response = await client.post(
-                    url,
-                    json=criteria.model_dump(by_alias=True, exclude_none=True),
-                    params=self.get_api_params(),
-                )
-
-            response.raise_for_status()
-            
-            result_dict = response.json()
-            search_result = SearchResult.model_validate(result_dict)
-            for food in search_result.foods:
-                await cache_service.set_ingredient(food.model_dump(by_alias=True, exclude_none=True))
-                
-            return result_dict['foods']
-
-    async def search_ingredients(
+    async def search_by_criteria(
         self,
-        query: str,
-        limit: int = 20,
+        criteria: FoodsByCriteria,
+        url: str = None,
         include_brands: bool = False
     ) -> list[dict]:
         """
         Search for ingredients with Elasticsearch-first strategy.
 
         Flow:
-        1. Query Elasticsearch to get matching FDC IDs
-        2. Check cache for those IDs (returns full nutrient data)
-        3. For missing IDs, query USDA API by query
+        1. Query Elasticsearch for matching FDC IDs (fuzzy search)
+        2. Check cache for those IDs
+        3. For missing IDs, query USDA API
         4. Cache new results in Redis
         5. Publish to Kafka for ES indexing
-        6. Return merged results with full nutrient data
+        6. Return merged results
 
         Args:
-            query: Search query string
-            limit: Maximum number of results
+            criteria: FoodsByCriteria with search query and filters
+            url: for error handling context
             include_brands: Include Branded items in search
 
         Returns:
-            List of full ingredient dictionaries with complete nutrient data
+            List of food items matching search criteria with full nutrient data
+
+        Raises:
+            USDAAPIError: If the API call fails
         """
         # Determine data types to search
         data_types = ["Foundation", "SR Legacy"]
@@ -153,9 +130,9 @@ class USDAService:
 
         # Step 1: Query Elasticsearch for matching ingredient IDs
         es_results = await elasticsearch_service.search_ingredients(
-            query,
+            criteria.query,
             data_types,
-            limit
+            criteria.page_size or 20
         )
 
         results = []
@@ -171,43 +148,87 @@ class USDAService:
                 missing_fdc_ids.append(fdc_id)
 
         # If all results found in cache, return early
-        if not missing_fdc_ids:
-            return results[:limit]
+        if not missing_fdc_ids and results:
+            return results
 
-        # Step 3: Query USDA for missing ingredients
-        criteria = FoodsByCriteria(
-            query=query,
-            dataType=data_types,
-            pageSize=limit
-        )
+        # Step 3: Query USDA for missing ingredients (or if ES returned nothing)
+        url = f"{self.base_url}{self.USDA_FOODS_SEARCH_ENDPOINT}"
 
-        try:
-            usda_results = await self.search_by_criteria(criteria)
+        async with httpx.AsyncClient(timeout=self.DEFAULT_TIMEOUT) as client:
+            request_body = criteria.model_dump(by_alias=True, exclude_none=True)
+            logger.info(f"search_by_criteria request to {url}")
+            logger.debug(f"Request body: {request_body}")
 
-            # Cache and publish each new result
-            for item in usda_results:
-                if item["fdcId"] not in [r.get("fdcId") for r in results]:
+            response = await client.post(
+                url,
+                json=request_body,
+                params=self.get_api_params(),
+            )
+
+            response.raise_for_status()
+
+            result_dict = response.json()
+            if result_dict.get("foods"):
+                logger.info(f"Got {len(result_dict['foods'])} results from USDA search")
+                logger.debug(f"First result structure: {json.dumps(result_dict['foods'][0], indent=2, default=str)}")
+            search_result = SearchResult.model_validate(result_dict)
+
+            # Cache and publish each result
+            for food in search_result.foods:
+                food_dict = food.model_dump(by_alias=True, exclude_none=True)
+
+                # Only add if not already in results
+                if food_dict["fdcId"] not in [r.get("fdcId") for r in results]:
                     # Cache in Redis
-                    await cache_service.set_ingredient(item)
+                    await cache_service.set_ingredient(food_dict)
 
                     # Publish to Kafka (fire-and-forget)
                     try:
                         await kafka_producer.publish_ingredient_cached(
                             IngredientCached(
-                                fdc_id=item["fdcId"],
-                                data=item,
+                                fdc_id=food_dict["fdcId"],
+                                data=food_dict,
                                 cached_at=datetime.utcnow()
                             )
                         )
                     except Exception as e:
-                        print(f"⚠ Failed to publish ingredient {item['fdcId']} to Kafka: {e}")
+                        logger.warning(f"Failed to publish ingredient {food_dict['fdcId']} to Kafka: {e}")
 
-                    results.append(item)
+                    results.append(food_dict)
 
-        except Exception as e:
-            print(f"⚠ USDA search failed for query '{query}': {e}")
+            return results
 
-        return results[:limit]
+    async def _fetch_from_usda(self, fdc_id: int) -> dict:
+        """
+        Fetch a single ingredient by FDC ID from USDA API.
+
+        Internal helper method used by cronjobs and refresh operations.
+
+        Args:
+            fdc_id: USDA FoodData Central ID
+
+        Returns:
+            Raw USDA API response as dictionary
+
+        Raises:
+            USDAAPIError: If the API call fails
+        """
+        url = f"{self.base_url}{self.USDA_FOODS_BY_IDS_ENDPOINT}"
+        criteria = FoodsByFdcID(fdc_ids=[fdc_id])
+
+        async with httpx.AsyncClient(timeout=self.DEFAULT_TIMEOUT) as client:
+            response = await client.post(
+                url,
+                json=criteria.model_dump(by_alias=True, exclude_none=True),
+                params=self.get_api_params(),
+            )
+            response.raise_for_status()
+
+            # USDA returns a list, extract the first item
+            results = response.json()
+            if results:
+                return results[0]
+            raise USDAAPIError(f"Ingredient {fdc_id} not found", url=url, status_code=404)
 
     def get_api_params(self):
         return {self.API_KEY: self.api_key}

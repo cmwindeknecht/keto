@@ -20,16 +20,14 @@ class AbridgedFoodNutrient(BaseModel):
     """
     Simplified nutrient information.
 
-    Returned by:
-    - GET /v1/food/{fdcId} (with format=abridged)
-    - GET/POST /v1/foods (with format=abridged)
-    - GET/POST /v1/foods/list
-    - GET/POST /v1/foods/search (in SearchResultFood items)
+    Returned by search endpoints and list endpoints.
+    Note: The API returns this flattened (not nested under a nutrient object).
     """
 
-    number: str | int | float | None = None
-    name: str | None = None
-    amount: float | None = None
+    nutrient_id: int | None = Field(None, alias="nutrientId")
+    nutrient_number: str | int | None = Field(None, alias="nutrientNumber")
+    nutrient_name: str | None = Field(None, alias="nutrientName")
+    value: float | None = None
     unit_name: str | None = Field(None, alias="unitName")
     derivation_code: str | None = Field(None, alias="derivationCode")
     derivation_description: str | None = Field(None, alias="derivationDescription")

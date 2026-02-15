@@ -50,7 +50,7 @@ db-shell: ## Open PostgreSQL shell
 redis-shell: ## Open Redis CLI
 	docker-compose exec redis redis-cli
 
-db-migrate: ## Run database migrations (example)
+db-migrate: ## Run database migrations
 	docker-compose exec backend-fastapi alembic upgrade head
 
 db-reset: ## Reset database (destroys all data)
