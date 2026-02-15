@@ -98,9 +98,6 @@ func main() {
 			ingredientID := chi.URLParam(httpRequest, "ingredient_id")
 			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, "/internal/recipes/"+id+"/ingredients/"+ingredientID)
 		})
-		subRouter.Post("/search-ingredients", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
-			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, "/internal/recipes/search-ingredients")
-		})
 
 		// USDA endpoints
 		subRouter.Get("/usda/food/{fdc_id}", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
