@@ -1,10 +1,10 @@
 """Service for managing Redis cache operations."""
 
+import json
 from typing import Optional
 import redis.asyncio as redis
 
 from app.core.config import settings
-from .models import CachedIngredient
 
 
 class CacheService:
@@ -18,6 +18,12 @@ class CacheService:
 
     setex() is atomic - if key exists, it overwrites (no duplicate risk).
     """
+    TTL_STRATEGY = {
+      "Foundation": None,        # Permanent
+      "SR Legacy": None,         # Permanent
+      "Survey (FNDDS)": 180 * 86400,  # 180 days
+      "Branded": 30 * 86400,     # 30 days
+    }
 
     # Cache configuration
     INGREDIENT_TTL = 30 * 24 * 60 * 60  # 30 days in seconds
@@ -42,15 +48,14 @@ class CacheService:
         """Generate cache key for an ingredient."""
         return f"{self.INGREDIENT_KEY_PREFIX}:{fdc_id}"
 
-    async def get_ingredient(self, fdc_id: int) -> Optional[CachedIngredient]:
+    async def get_ingredient(self, fdc_id: int) -> Optional[dict]:
         """
         Retrieve cached ingredient data.
 
         Args:
-            fdc_id: USDA FoodData Central ID
+        - fdc_id: USDA FoodData Central ID
 
-        Returns:
-            CachedIngredient if found in cache, None otherwise
+        @Returns: Optional[dict] if found in cache, None otherwise
         """
         if not self._redis_client:
             await self.connect()
@@ -59,10 +64,10 @@ class CacheService:
         data = await self._redis_client.get(key)
 
         if data:
-            return CachedIngredient.model_validate_json(data)
+            return json.loads(data)
         return None
 
-    async def set_ingredient(self, ingredient: CachedIngredient) -> bool:
+    async def set_ingredient(self, ingredient: dict) -> None:
         """
         Cache ingredient data with 30-day TTL.
 
@@ -77,17 +82,16 @@ class CacheService:
         if not self._redis_client:
             await self.connect()
 
-        key = self._get_ingredient_key(ingredient.fdc_id)
+        key = self._get_ingredient_key(ingredient['fdcId'])
+        ttl = self.TTL_STRATEGY.get(ingredient.get('dataType'), 30 * 86400)
+
         try:
-            await self._redis_client.setex(
-                key,
-                self.INGREDIENT_TTL,
-                ingredient.model_dump_json()
-            )
-            return True
+            if ttl:
+                await self._redis_client.setex(key, ttl, json.dumps(ingredient))
+            else:
+                await self._redis_client.set(key, json.dumps(ingredient))
         except Exception as e:
-            print(f"Error caching ingredient {ingredient.fdc_id}: {e}")
-            return False
+            print(f"Error caching ingredient {ingredient['fdcId']}: {e}")
 
     async def clear_all_ingredients(self) -> int:
         """
