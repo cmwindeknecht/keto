@@ -6,8 +6,8 @@ from app.core.config import settings
 from app.core.exceptions import USDAAPIError
 from app.services.cache.cache_service import cache_service
 from app.services.cache.models import CachedIngredient
-from app.services.cache.transformers import transform_usda_response_to_cached_ingredient
-from .models.requests import FoodsCriteria, FoodListCriteria, FoodSearchCriteria
+from app.services.cache.transformers import to_cached_ingredient
+from .models.requests import FoodsByFdcID, FoodListCriteria, FoodsByCriteria
 from .models.responses import (
     AbridgedFoodItem,
     BrandedFoodItem,
@@ -85,7 +85,7 @@ class USDAService:
         usda_data = await self._fetch_from_usda(fdc_id)
 
         # Transform to cached format
-        cached_ingredient = transform_usda_response_to_cached_ingredient(usda_data)
+        cached_ingredient = to_cached_ingredient(usda_data)
 
         # Store in cache
         await cache_service.set_ingredient(cached_ingredient)
@@ -129,7 +129,7 @@ class USDAService:
             raise USDAAPIError(f"USDA API error: {str(e)}")
 
     async def search_multi_detail(
-        self, criteria: FoodsCriteria
+        self, criteria: FoodsByFdcID
     ) -> list[AbridgedFoodItem | BrandedFoodItem | FoundationFoodItem | SRLegacyFoodItem | SurveyFoodItem]:
         """
         Get detailed information for multiple foods by FDC IDs.
@@ -198,7 +198,7 @@ class USDAService:
         except httpx.HTTPError as e:
             raise USDAAPIError(f"USDA API error: {str(e)}")
 
-    async def search(self, criteria: FoodSearchCriteria | None = None, query: str | None = None) -> SearchResult:
+    async def search(self, criteria: FoodsByCriteria | None = None, query: str | None = None) -> SearchResult:
         """
         Search for foods by keywords.
 

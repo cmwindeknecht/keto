@@ -1,25 +1,18 @@
 .PHONY: help up down restart build rebuild logs ps clean clean-all shell-fastapi shell-go shell-react db-shell redis-shell test
 
-help: ## Show this help message
-	@echo 'Usage: make [target]'
-	@echo ''
-	@echo 'Available targets:'
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-
 up: ## Start all services
+	docker-compose down
 	docker-compose up -d
 
-down: ## Stop all services
+restart-build: ## Build all services
 	docker-compose down
-
-restart: ## Restart all services
-	docker-compose restart
-
-build: ## Build all services
 	docker-compose build
+	docker-compose up -d
 
-rebuild: ## Rebuild all services from scratch (no cache)
+restart-nocache: ## Restart all services
+	docker-compose down
 	docker-compose build --no-cache
+	docker-compose up -d
 
 logs: ## Show logs from all services (follow mode)
 	docker-compose logs -f
@@ -60,8 +53,8 @@ redis-shell: ## Open Redis CLI
 db-migrate: ## Run database migrations (example)
 	docker-compose exec backend-fastapi alembic upgrade head
 
-db-reset: ## Reset database (WARNING: destroys all data)
-	docker-compose down postgres -v
+db-reset: ## Reset database (destroys all data)
+	docker-compose down
 	docker-compose up -d postgres
 
 test-fastapi: ## Run FastAPI tests

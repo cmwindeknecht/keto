@@ -3,9 +3,9 @@ from typing import Optional
 from fastapi import APIRouter, Query, status
 
 from app.services.usda.models.requests import (
-    FoodsCriteria,
+    FoodsByFdcID,
     FoodListCriteria,
-    FoodSearchCriteria,
+    FoodsByCriteria,
 )
 from app.services.usda.models.responses import (
     AbridgedFoodItem,
@@ -46,7 +46,7 @@ async def get_food_details(
     status_code=status.HTTP_200_OK,
     summary="Get multiple foods by FDC IDs",
 )
-async def get_multiple_foods(criteria: FoodsCriteria):
+async def get_multiple_foods(criteria: FoodsByFdcID):
     """Get detailed information for multiple foods by FDC IDs."""
     return await usda_service.search_multi_detail(criteria)
 
@@ -81,7 +81,7 @@ async def search_foods_query(
     status_code=status.HTTP_200_OK,
     summary="Advanced search for foods",
 )
-async def search_foods_advanced(criteria: FoodSearchCriteria):
+async def search_foods_advanced(criteria: FoodsByCriteria):
     """Advanced search for foods with complex criteria."""
     return await usda_service.search(criteria=criteria)
 

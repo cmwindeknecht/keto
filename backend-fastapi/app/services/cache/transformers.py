@@ -3,7 +3,7 @@
 from .models import CachedIngredient, CachedNutrient
 
 
-def transform_usda_response_to_cached_ingredient(usda_data: dict) -> CachedIngredient:
+def to_cached_ingredient(usda_data: dict) -> CachedIngredient:
     """
     Transform a USDA API response into a CachedIngredient.
 
