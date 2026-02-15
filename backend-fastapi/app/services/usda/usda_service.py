@@ -1,11 +1,15 @@
 """Service for interacting with USDA FoodData Central API."""
 
-from functools import wraps 
+from functools import wraps
+from datetime import datetime
 import httpx
 
 from app.core.config import settings
 from app.core.exceptions import USDAAPIError
 from app.services.cache.cache_service import cache_service
+from app.services.elasticsearch.es_service import elasticsearch_service
+from app.services.kafka.producer import kafka_producer
+from app.services.kafka.models import IngredientCached
 from .models.requests import FoodsByFdcID, FoodsByCriteria
 from .models.responses import SearchResult
 
@@ -116,6 +120,94 @@ class USDAService:
                 await cache_service.set_ingredient(food.model_dump(by_alias=True, exclude_none=True))
                 
             return result_dict['foods']
+
+    async def search_ingredients(
+        self,
+        query: str,
+        limit: int = 20,
+        include_brands: bool = False
+    ) -> list[dict]:
+        """
+        Search for ingredients with Elasticsearch-first strategy.
+
+        Flow:
+        1. Query Elasticsearch to get matching FDC IDs
+        2. Check cache for those IDs (returns full nutrient data)
+        3. For missing IDs, query USDA API by query
+        4. Cache new results in Redis
+        5. Publish to Kafka for ES indexing
+        6. Return merged results with full nutrient data
+
+        Args:
+            query: Search query string
+            limit: Maximum number of results
+            include_brands: Include Branded items in search
+
+        Returns:
+            List of full ingredient dictionaries with complete nutrient data
+        """
+        # Determine data types to search
+        data_types = ["Foundation", "SR Legacy"]
+        if include_brands:
+            data_types.append("Branded")
+
+        # Step 1: Query Elasticsearch for matching ingredient IDs
+        es_results = await elasticsearch_service.search_ingredients(
+            query,
+            data_types,
+            limit
+        )
+
+        results = []
+        missing_fdc_ids = []
+
+        # Step 2: Try to get full data from cache for ES results
+        for es_result in es_results:
+            fdc_id = es_result["fdc_id"]
+            cached_data = await cache_service.get_ingredient(fdc_id)
+            if cached_data:
+                results.append(cached_data)
+            else:
+                missing_fdc_ids.append(fdc_id)
+
+        # If all results found in cache, return early
+        if not missing_fdc_ids:
+            return results[:limit]
+
+        # Step 3: Query USDA for missing ingredients
+        criteria = FoodsByCriteria(
+            query=query,
+            dataType=data_types,
+            pageSize=limit
+        )
+
+        try:
+            usda_results = await self.search_by_criteria(criteria)
+
+            # Cache and publish each new result
+            for item in usda_results:
+                if item["fdcId"] not in [r.get("fdcId") for r in results]:
+                    # Cache in Redis
+                    await cache_service.set_ingredient(item)
+
+                    # Publish to Kafka (fire-and-forget)
+                    try:
+                        await kafka_producer.publish_ingredient_cached(
+                            IngredientCached(
+                                fdc_id=item["fdcId"],
+                                data=item,
+                                cached_at=datetime.utcnow()
+                            )
+                        )
+                    except Exception as e:
+                        print(f"⚠ Failed to publish ingredient {item['fdcId']} to Kafka: {e}")
+
+                    results.append(item)
+
+        except Exception as e:
+            print(f"⚠ USDA search failed for query '{query}': {e}")
+
+        return results[:limit]
 
     def get_api_params(self):
         return {self.API_KEY: self.api_key}

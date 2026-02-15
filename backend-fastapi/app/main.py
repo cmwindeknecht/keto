@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.db.database import db_manager
 from app.services.cache.cache_service import cache_service
 from app.services.elasticsearch.es_service import elasticsearch_service
+from app.services.kafka.producer import kafka_producer
 from app.routes.internal import recipes as internal_recipes_routes
 from app.routes.internal import usda as internal_usda_routes
 
@@ -18,8 +19,10 @@ async def lifespan(app: FastAPI):
     await db_manager.initialize()
     await cache_service.connect()
     await elasticsearch_service.initialize()
+    await kafka_producer.start()
     yield
     # Shutdown
+    await kafka_producer.stop()
     await elasticsearch_service.disconnect()
     await cache_service.disconnect()
     await db_manager.close()

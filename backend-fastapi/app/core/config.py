@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # Elasticsearch
     ELASTICSEARCH_URL: str = "http://localhost:9200"
 
+    # Kafka
+    KAFKA_BOOTSTRAP_SERVERS: str = "kafka:9092"
+
     # USDA FoodData Central API
     USDA_API_KEY: str = ""
     USDA_BASE_URLS: dict[URL, FetchType] = {
