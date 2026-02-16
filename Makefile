@@ -1,16 +1,16 @@
 .PHONY: help up down restart build rebuild logs ps clean clean-all shell-fastapi shell-go shell-react db-shell redis-shell test
 
 up: ## Start all services
-	docker-compose down
+	docker-compose down -v
 	docker-compose up -d
 
 restart-build: ## Build all services
-	docker-compose down
+	docker-compose down -v
 	docker-compose build
 	docker-compose up -d
 
 restart-nocache: ## Restart all services
-	docker-compose down
+	docker-compose down -v
 	docker-compose build --no-cache
 	docker-compose up -d
 

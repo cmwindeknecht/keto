@@ -5,18 +5,27 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.db.database import db_manager
+from app.services.cache.cache_service import cache_service
+from app.services.elasticsearch.es_service import elasticsearch_service
+from app.services.kafka.producer import kafka_producer
+from app.middleware.logging import LoggingMiddleware
+from app.routes.internal import recipes as internal_recipes_routes
+from app.routes.internal import usda as internal_usda_routes
+
 
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-from app.db.database import db_manager
-from app.services.cache.cache_service import cache_service
-from app.services.elasticsearch.es_service import elasticsearch_service
-from app.services.kafka.producer import kafka_producer
-from app.routes.internal import recipes as internal_recipes_routes
-from app.routes.internal import usda as internal_usda_routes
+
+# Suppress verbose library logs
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("aiokafka").setLevel(logging.WARNING)
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -42,10 +51,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Add logging middleware first so it logs everything
+app.add_middleware(LoggingMiddleware)
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=["*"],  # TODO Configure appropriately for production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

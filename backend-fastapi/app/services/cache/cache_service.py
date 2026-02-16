@@ -35,21 +35,26 @@ class CacheService:
     def __init__(self):
         self.redis_url = settings.REDIS_URL
         self._redis_client: Optional[redis.Redis] = None
+        logger.debug(f"CacheService initialized with Redis URL: {self.redis_url}")
 
     async def connect(self):
         """Initialize Redis connection."""
         if not self._redis_client:
             self._redis_client = await redis.from_url(self.redis_url, decode_responses=True)
+            logger.debug("Connected to Redis")
 
     async def disconnect(self):
         """Close Redis connection."""
         if self._redis_client:
             await self._redis_client.close()
             self._redis_client = None
+            logger.debug("Disconnected from Redis")
 
     def _get_ingredient_key(self, fdc_id: int) -> str:
         """Generate cache key for an ingredient."""
-        return f"{self.INGREDIENT_KEY_PREFIX}:{fdc_id}"
+        ingredient_key = f"{self.INGREDIENT_KEY_PREFIX}:{fdc_id}"
+        logger.debug(f"Generated cache key for fdc_id {fdc_id}: {ingredient_key}")
+        return ingredient_key
 
     async def get_ingredient(self, fdc_id: int) -> Optional[dict]:
         """
@@ -67,7 +72,10 @@ class CacheService:
         data = await self._redis_client.get(key)
 
         if data:
+            logger.info(f"Retrieved data for key {key}: {data}")  
             return json.loads(data)
+        
+        logger.info(f"No data found for key {key}")
         return None
 
     async def set_ingredient(self, ingredient: dict) -> None:
@@ -88,18 +96,15 @@ class CacheService:
         fdc_id = ingredient['fdcId']
         key = self._get_ingredient_key(fdc_id)
         ttl = self.TTL_STRATEGY.get(ingredient.get('dataType'), 30 * 86400)
-        food_nutrients = ingredient.get('foodNutrients', [])
 
-        logger.info(f"Caching ingredient {fdc_id} ({ingredient.get('description', 'unknown')})")
-        logger.debug(f"Data type: {ingredient.get('dataType')}, TTL: {ttl} seconds")
-        logger.debug(f"Food nutrients count: {len(food_nutrients)}")
-        if food_nutrients:
-            logger.debug(f"First nutrient: {json.dumps(food_nutrients[0], indent=2, default=str)}")
+        logger.info(f"Caching ingredient {fdc_id} --- ({ingredient})")
 
         try:
             if ttl:
+                logger.info(f"Setting ingredient with key {key} and TTL {ttl} seconds")
                 await self._redis_client.setex(key, ttl, json.dumps(ingredient))
             else:
+                logger.info(f"Setting ingredient with key {key} with no TTL (permanent)")
                 await self._redis_client.set(key, json.dumps(ingredient))
         except Exception as e:
             logger.error(f"Error caching ingredient {fdc_id}: {e}")
@@ -118,6 +123,7 @@ class CacheService:
         keys = await self._redis_client.keys(pattern)
 
         if keys:
+            logger.info(f"Clearing {len(keys)} cached ingredients")
             return await self._redis_client.delete(*keys)
         return 0
 

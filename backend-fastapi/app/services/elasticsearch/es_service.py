@@ -1,9 +1,12 @@
 """Service for Elasticsearch ingredient indexing and fuzzy search."""
 
+import logging
 from typing import Optional
 from elasticsearch import AsyncElasticsearch
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class ElasticsearchService:
@@ -47,17 +50,20 @@ class ElasticsearchService:
     def __init__(self):
         self.es_url = settings.ELASTICSEARCH_URL
         self._client: Optional[AsyncElasticsearch] = None
+        logger.debug(f"ElasticsearchService initialized with URL: {self.es_url}")
 
     async def connect(self):
         """Initialize Elasticsearch connection."""
         if not self._client:
             self._client = AsyncElasticsearch([self.es_url])
+            logger.debug("Connected to Elasticsearch")
 
     async def disconnect(self):
         """Close Elasticsearch connection."""
         if self._client:
             await self._client.close()
             self._client = None
+            logger.debug("Disconnected from Elasticsearch")
 
     async def initialize(self):
         """Create index with fuzzy search mapping if it doesn't exist."""
@@ -70,11 +76,11 @@ class ElasticsearchService:
                     index=self.INDEX_NAME,
                     **self.INDEX_MAPPING
                 )
-                print(f"✓ Created Elasticsearch index: {self.INDEX_NAME}")
+                logger.info(f"Created Elasticsearch index: {self.INDEX_NAME}")
             else:
-                print(f"✓ Elasticsearch index already exists: {self.INDEX_NAME}")
+                logger.info(f"Elasticsearch index already exists: {self.INDEX_NAME}")
         except Exception as e:
-            print(f"✗ Error initializing Elasticsearch: {e}")
+            logger.error(f"Error initializing Elasticsearch: {e}")
             raise
 
     async def search_ingredients(

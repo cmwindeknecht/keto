@@ -48,7 +48,7 @@ class KafkaProducerService:
 
         try:
             await self.producer.send(topic, value=event.model_dump())
-            print(f"Published event to topic '{topic}' with data: {event.model_dump()}")
+            # print(f"Published event to topic '{topic}' with data: {event.model_dump()}")
         except Exception as e:
             print(f"Error publishing to to topic '{topic}' with data: {event.model_dump()} due to exceptiopn {e}")
             raise

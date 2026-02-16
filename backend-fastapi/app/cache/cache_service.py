@@ -1,10 +1,14 @@
 """Service for managing Redis cache operations."""
 
+import logging
 from typing import Optional
 import redis.asyncio as redis
 
 from app.core.config import settings
 from .models import CachedIngredient
+
+
+logger = logging.getLogger(__name__)
 
 
 class CacheService:
@@ -26,21 +30,26 @@ class CacheService:
     def __init__(self):
         self.redis_url = settings.REDIS_URL
         self._redis_client: Optional[redis.Redis] = None
+        logger.debug(f"CacheService initialized with Redis URL: {self.redis_url}")
 
     async def connect(self):
         """Initialize Redis connection."""
         if not self._redis_client:
             self._redis_client = await redis.from_url(self.redis_url, decode_responses=True)
-
+            logger.debug("Connected to Redis")
+            
     async def disconnect(self):
         """Close Redis connection."""
         if self._redis_client:
             await self._redis_client.close()
             self._redis_client = None
+            logger.debug("Disconnected from Redis")
 
     def _get_ingredient_key(self, fdc_id: int) -> str:
         """Generate cache key for an ingredient."""
-        return f"{self.INGREDIENT_KEY_PREFIX}:{fdc_id}"
+        ingredient_key = f"{self.INGREDIENT_KEY_PREFIX}:{fdc_id}"
+        logger.debug(f"Generated cache key for fdc_id {fdc_id}: {ingredient_key}")
+        return ingredient_key
 
     async def get_ingredient(self, fdc_id: int) -> Optional[CachedIngredient]:
         """
@@ -57,9 +66,13 @@ class CacheService:
 
         key = self._get_ingredient_key(fdc_id)
         data = await self._redis_client.get(key)
-
+ 
+        
         if data:
+            logger.info(f"Retrieved data for key {key}: {data}")  
             return CachedIngredient.model_validate_json(data)
+        
+        logger.info(f"No data found for key {key}")
         return None
 
     async def set_ingredient(self, ingredient: CachedIngredient) -> bool:
@@ -84,6 +97,7 @@ class CacheService:
                 self.INGREDIENT_TTL,
                 ingredient.model_dump_json()
             )
+            logger.info(f"Cached ingredient with key {key} and TTL {self.INGREDIENT_TTL} seconds")
             return True
         except Exception as e:
             print(f"Error caching ingredient {ingredient.fdc_id}: {e}")
