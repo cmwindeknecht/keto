@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.core.exceptions import DatabaseError, IngredientNotFoundError, RecipeNotFoundError
 from app.db.models import Recipe, RecipeIngredient
 from app.services.recipe.models.requests import RecipeCreate, RecipeIngredientInput, RecipeUpdate
-from app.services.recipe.models.responses import IngredientResponse, NutrientInfo, RecipeIngredientResponse, RecipeResponse
+from app.services.recipe.models.responses import IngredientResponse, RecipeIngredientResponse, RecipeResponse
 from app.services.usda.models.requests import FoodsByFdcID
 from app.services.usda.usda_service import usda_service
 from app.services.usda.utils import calculate_proportional_nutrients, extract_all_nutrients, sum_nutrients
@@ -62,7 +62,7 @@ class RecipeService:
         except Exception as e:
             await session.rollback()
             logger.error(f"Failed to create recipe with name '{recipe_data.name}': {e}")
-            raise DatabaseError(f"Failed to create recipe: {str(e)}")
+            raise DatabaseError(f"Failed: {str(e)}") from e
 
     async def get_recipe(self, session: AsyncSession, recipe_id: int) -> RecipeResponse:
         """
@@ -130,7 +130,7 @@ class RecipeService:
         except Exception as e:
             await session.rollback()
             logger.error(f"Failed to update recipe with ID {recipe_id}: {e}")
-            raise DatabaseError(f"Failed to update recipe: {str(e)}")
+            raise DatabaseError(f"Failed to update recipe: {str(e)}") from e
 
     async def delete_recipe(self, session: AsyncSession, recipe_id: int) -> None:
         """
@@ -161,7 +161,7 @@ class RecipeService:
         except Exception as e:
             await session.rollback()
             logger.error(f"Failed to delete recipe with ID {recipe_id}: {e}")
-            raise DatabaseError(f"Failed to delete recipe: {str(e)}")
+            raise DatabaseError(f"Failed to delete recipe: {str(e)}") from e
 
     async def list_recipes(self, session: AsyncSession, cuisine: str | None = None) -> list[RecipeResponse]:
         """
@@ -187,7 +187,7 @@ class RecipeService:
             return [await self._recipe_to_response(recipe) for recipe in recipes]
         except Exception as e:
             logger.error(f"Failed to list recipes with cuisine filter '{cuisine}': {e}")
-            raise DatabaseError(f"Failed to list recipes: {str(e)}")
+            raise DatabaseError(f"Failed to list recipes: {str(e)}") from e
 
     async def add_ingredient_to_recipe(self, session: AsyncSession, recipe_id: int, ingredient_input: RecipeIngredientInput) -> RecipeResponse:
         """
@@ -229,7 +229,7 @@ class RecipeService:
         except Exception as e:
             await session.rollback()
             logger.error(f"Failed to add ingredient to recipe {recipe_id}: {e}")
-            raise DatabaseError(f"Failed to add ingredient: {str(e)}")
+            raise DatabaseError(f"Failed to add ingredient: {str(e)}") from e
 
     async def remove_ingredient_from_recipe(self, session: AsyncSession, recipe_id: int, ingredient_id: int) -> RecipeResponse:
         """
@@ -272,7 +272,7 @@ class RecipeService:
         except Exception as e:
             logger.error(f"Failed to remove ingredient {ingredient_id} from recipe {recipe_id}: {e}")
             await session.rollback()
-            raise DatabaseError(f"Failed to remove ingredient: {str(e)}")
+            raise DatabaseError(f"Failed to remove ingredient: {str(e)}") from e
 
     async def _recipe_to_response(self, recipe: Recipe) -> RecipeResponse:
         """

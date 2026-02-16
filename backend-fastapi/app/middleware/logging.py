@@ -32,7 +32,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         # Cache request body for multiple reads
         receive_ = await request._receive()
 
-        async def receive() -> Message:  # sonarlint: disable=S7503
+        async def receive() -> Message:
             return receive_
 
         request._receive = receive

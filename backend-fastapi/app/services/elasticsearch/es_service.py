@@ -88,7 +88,7 @@ class ElasticsearchService:
                 }
             }
 
-            response = await self._client.search(index=self.INDEX_NAME, query=search_query, size=limit, _source=["fdc_id", "name", "data_type"])
+            response = await self._client.search(index=self.INDEX_NAME, query=search_query, size=limit, source=["fdc_id", "name", "data_type"])
 
             results = []
             for hit in response["hits"]["hits"]:

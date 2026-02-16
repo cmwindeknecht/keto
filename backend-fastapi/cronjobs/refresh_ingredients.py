@@ -3,10 +3,10 @@
 import asyncio
 from datetime import datetime
 
-from app.services.cache.cache_service import cache_service
-from app.services.usda.usda_service import usda_service
-from app.services.elasticsearch.es_service import elasticsearch_service
 from app.db.database import SessionLocal
+from app.services.cache.cache_service import cache_service
+from app.services.elasticsearch.es_service import elasticsearch_service
+from app.services.usda.usda_service import usda_service
 
 
 async def refresh_branded_ingredients():

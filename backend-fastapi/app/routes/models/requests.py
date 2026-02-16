@@ -3,7 +3,6 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.db.models import Cuisine
-from app.services.usda.models.requests import FoodsByCriteria, FoodsByFdcID
 
 
 # Recipe Route Models
@@ -39,3 +38,35 @@ class SearchIngredientsRequest(BaseModel):
     brand_owner: Optional[str] = Field(None, description="Filter by brand owner name (for branded foods)")
     trade_channel: Optional[list[str]] = Field(None, description="Filter by trade channel: CHILD_NUTRITION_FOOD_PROGRAMS, GROCERY, etc.")
     limit: int = Field(default=20, ge=1, le=100, description="Maximum number of results")
+
+
+# USDA Route Models
+class FoodsByFdcID(BaseModel):
+    """Request body for getting multiple foods by FDC IDs."""
+
+    fdc_ids: list[int] = Field(
+        ...,
+        min_items=1,
+        max_items=20,
+        alias="fdcIds",
+        description="List of USDA FoodData Central IDs to retrieve (1-20 IDs per request).",
+    )
+    format: str = Field("full", pattern="^(abridged|full)$", description="Response format: 'abridged' or 'full'.")
+
+    class Config:
+        populate_by_name = True
+
+
+class FoodsByCriteria(BaseModel):
+    """Request body for searching foods by criteria."""
+
+    query: str = Field(..., description="Search keywords (e.g., 'apple', 'chicken').")
+    data_type: Optional[list[str]] = Field(None, alias="dataType", description="Filter by food database types.")
+    brand_owner: Optional[str] = Field(None, alias="brandOwner", description="Filter by brand owner name.")
+    page_size: Optional[int] = Field(200, ge=1, le=200, alias="pageSize", description="Number of results per page (1-200).")
+    page_number: Optional[int] = Field(None, alias="pageNumber", description="Page number (1-based).")
+    sort_by: Optional[str] = Field(None, alias="sortBy", description="Field to sort by.")
+    sort_order: Optional[str] = Field(None, pattern="^(asc|desc)$", alias="sortOrder", description="Sort order: 'asc' or 'desc'.")
+
+    class Config:
+        populate_by_name = True

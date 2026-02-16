@@ -1,8 +1,7 @@
 """Service for interacting with USDA FoodData Central API."""
 
-import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 
 import httpx
@@ -28,15 +27,15 @@ def handle_usda_errors(func):
         self = args[0]
         url = kwargs.get("url")
 
-        if not self.api_key:
-            raise USDAAPIError("USDA API key not configured", url=url, status_code=None)
+        if not self.usda_api_key:
+            raise USDAAPIError(url=url, detail="USDA API key not configured", status_code=None)
 
         try:
             return await func(*args, **kwargs)
         except httpx.HTTPStatusError as e:
-            raise USDAAPIError(f"USDA API error: {str(e)}", url=url, status_code=e.response.status_code)
+            raise USDAAPIError(url=url, detail=f"USDA API error: {str(e)}", status_code=e.response.status_code) from e
         except httpx.HTTPError as e:
-            raise USDAAPIError(f"USDA API error: {str(e)}", url=url, status_code=None)
+            raise USDAAPIError(url=url, detail=f"USDA API error: {str(e)}", status_code=None) from e
 
     return wrapper
 
@@ -52,7 +51,7 @@ class USDAService:
 
     def __init__(self):
         self.base_url = settings.USDA_API_BASE_URL
-        self.api_key = settings.USDA_API_KEY
+        self.usda_api_key = settings.USDA_API_KEY
 
     @handle_usda_errors
     async def search_by_fdcids(self, criteria: FoodsByFdcID, url: str = None) -> list[dict]:
@@ -67,7 +66,8 @@ class USDAService:
 
         @Raises: USDAAPIError: If the API call fails
         """
-        url = f"{self.base_url}{self.USDA_FOODS_BY_IDS_ENDPOINT}"
+        if url is None:
+            url = f"{self.base_url}{self.USDA_FOODS_BY_IDS_ENDPOINT}"
 
         cached_ingredients: list[dict] = []
         missing_fdc_ids: list[int] = []
@@ -132,34 +132,22 @@ class USDAService:
         # Step 1: Query Elasticsearch for matching ingredient IDs
         es_results = await elasticsearch_service.search_ingredients(criteria.query, data_types, criteria.page_size or 20)
 
-        results = []
-        missing_fdc_ids = []
-
-        # Step 2: Try to get full data from cache for ES results
-        for es_result in es_results:
-            fdc_id = es_result["fdc_id"]
-            cached_data = await cache_service.get_ingredient(fdc_id)
-            if cached_data:
-                results.append(cached_data)
-            else:
-                missing_fdc_ids.append(fdc_id)
+        results, missing_fdc_ids = await self.intersect_results(es_results)
 
         # If all results found in cache, return early
-        if not missing_fdc_ids and results:
+        if not missing_fdc_ids:
             logger.info(f"All {len(results)} ES search results found in cache for query '{criteria.query}' with data types {data_types}")
             return results
 
-        logger.info(
-            f"{len(results)} ES search results found in cache, {len(missing_fdc_ids)} missing for query '{criteria.query}' with data types {data_types}"
-        )
+        logger.info(f"{len(results)} ES search results found in cache, {len(missing_fdc_ids)} missing for query '{criteria.query}'")
 
         # Step 3: Query USDA for missing ingredients (or if ES returned nothing)
-        url = f"{self.base_url}{self.USDA_FOODS_SEARCH_ENDPOINT}"
+        if url is None:
+            url = f"{self.base_url}{self.USDA_FOODS_SEARCH_ENDPOINT}"
 
         async with httpx.AsyncClient(timeout=self.DEFAULT_TIMEOUT) as client:
             request_body = criteria.model_dump(by_alias=True, exclude_none=True)
-            logger.info(f"search_by_criteria request to {url}")
-            logger.debug(f"Request body: {request_body}")
+            logger.info(f"search_by_criteria request to {url}, Request body: {request_body}")
 
             response = await client.post(
                 url,
@@ -186,7 +174,7 @@ class USDAService:
                     # Publish to Kafka
                     try:
                         await kafka_producer.publish_ingredient_cached(
-                            IngredientCached(fdc_id=food_dict["fdcId"], data=food_dict, cached_at=datetime.utcnow())
+                            IngredientCached(fdc_id=food_dict["fdcId"], data=food_dict, cached_at=datetime.now(timezone.utc))
                         )
                     except Exception as e:
                         logger.warning(f"Failed to publish ingredient {food_dict['fdcId']} to Kafka: {e}")
@@ -194,6 +182,21 @@ class USDAService:
                     results.append(food_dict)
 
             return results
+
+    async def intersect_results(self, es_results: list[dict]) -> tuple[list[dict], list[dict]]:
+        results = []
+        missing_fdc_ids = []
+
+        # Step 2: Try to get full data from cache for ES results
+        for es_result in es_results:
+            fdc_id = es_result["fdc_id"]
+            cached_data = await cache_service.get_ingredient(fdc_id)
+            if cached_data:
+                results.append(cached_data)
+            else:
+                missing_fdc_ids.append(fdc_id)
+
+        return results, missing_fdc_ids
 
     async def _fetch_from_usda(self, fdc_id: int) -> dict:
         """
@@ -225,10 +228,10 @@ class USDAService:
             results = response.json()
             if results:
                 return results[0]
-            raise USDAAPIError(f"Ingredient {fdc_id} not found", url=url, status_code=404)
+            raise USDAAPIError(url=url, detail=f"Ingredient {fdc_id} not found", status_code=404)
 
     def get_api_params(self):
-        return {self.API_KEY: self.api_key}
+        return {self.API_KEY: self.usda_api_key}
 
 
 usda_service = USDAService()

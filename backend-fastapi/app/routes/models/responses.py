@@ -4,7 +4,6 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.db.models import Cuisine
-from app.services.usda.models.responses import SearchResultFood
 
 
 # Recipe Route Response Models
@@ -56,3 +55,22 @@ class SearchIngredientsResponse(BaseModel):
 
     results: list[IngredientResponse] = Field(..., description="List of matching ingredients")
     total: int = Field(..., description="Total number of results found")
+
+
+# USDA Route Response Models
+class SearchResultFood(BaseModel):
+    """Food item in search results."""
+
+    fdc_id: int = Field(..., alias="fdcId", description="USDA FoodData Central ID")
+    data_type: Optional[str] = Field(None, alias="dataType", description="Food data type")
+    description: str = Field(..., description="Food description")
+    food_nutrients: Optional[list] = Field(None, alias="foodNutrients", description="Nutrient information")
+    publication_date: Optional[str] = Field(None, alias="publicationDate", description="Publication date")
+    brand_owner: Optional[str] = Field(None, alias="brandOwner", description="Brand owner")
+    gtin_upc: Optional[str] = Field(None, alias="gtinUpc", description="GTIN/UPC code")
+    ingredients: Optional[str] = Field(None, description="Ingredients list")
+    ndb_number: Optional[int] = Field(None, alias="ndbNumber", description="NDB number")
+    score: Optional[float] = Field(None, description="Search relevance score")
+
+    class Config:
+        populate_by_name = True

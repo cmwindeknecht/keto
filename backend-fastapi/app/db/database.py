@@ -1,10 +1,12 @@
+import logging
 from collections.abc import AsyncGenerator
-from venv import logger
 
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
@@ -21,16 +23,16 @@ class DatabaseManager:
         self._engine = value
 
     @property
-    def async_session(self) -> sessionmaker | None:
+    def async_session(self) -> async_sessionmaker | None:
         return self._async_session
 
     @async_session.setter
-    def async_session(self, value: sessionmaker) -> None:
+    def async_session(self, value: async_sessionmaker) -> None:
         self._async_session = value
 
     def __init__(self):
         self._engine: AsyncEngine | None = None
-        self._async_session: sessionmaker | None = None
+        self._async_session: async_sessionmaker | None = None
 
     def initialize(self):
         """
@@ -46,14 +48,14 @@ class DatabaseManager:
             future=True,
             pool_pre_ping=True,
         )
-        self.async_session = sessionmaker(self.engine, class_=AsyncSession, expire_on_commit=False, future=True)
+        self.async_session = async_sessionmaker(self.engine, class_=AsyncSession, expire_on_commit=False)
         logger.debug("Database engine and session factory initialized")
 
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
         """Get a new database session."""
         if self.async_session is None:
             self.initialize()
-        async with self.async_session() as session:
+        async with self.async_session() as session:  # pylint: disable=E1102
             logger.debug("Created new database session")
             yield session
 

@@ -2,8 +2,11 @@
 
 from fastapi import APIRouter, status
 
-from app.routes.models.requests import FoodsByCriteria, FoodsByFdcID
+from app.routes.models.requests import FoodsByCriteria as RouteFoodsByCriteria
+from app.routes.models.requests import FoodsByFdcID as RouteFoodsByFdcID
 from app.routes.models.responses import SearchResultFood
+from app.services.usda.models.requests import FoodsByCriteria as ServiceFoodsByCriteria
+from app.services.usda.models.requests import FoodsByFdcID as ServiceFoodsByFdcID
 from app.services.usda.usda_service import usda_service
 
 router = APIRouter(
@@ -18,9 +21,11 @@ router = APIRouter(
     status_code=status.HTTP_200_OK,
     summary="Get multiple foods by FDC IDs",
 )
-async def get_multiple_foods(criteria: FoodsByFdcID):
+async def get_multiple_foods(criteria: RouteFoodsByFdcID):
     """Get detailed information for multiple foods by FDC IDs."""
-    return await usda_service.search_by_fdcids(criteria)
+    service_criteria = ServiceFoodsByFdcID.model_validate(criteria.model_dump(by_alias=True))
+    results = await usda_service.search_by_fdcids(service_criteria)
+    return [SearchResultFood.model_validate(item.model_dump(by_alias=True)) for item in results]
 
 
 @router.post(
@@ -29,7 +34,7 @@ async def get_multiple_foods(criteria: FoodsByFdcID):
     status_code=status.HTTP_200_OK,
     summary="Search for foods by criteria",
 )
-async def search_foods(criteria: FoodsByCriteria):
+async def search_foods(criteria: RouteFoodsByCriteria):
     """
     Search for foods with Elasticsearch cache-first strategy.
 
@@ -40,4 +45,6 @@ async def search_foods(criteria: FoodsByCriteria):
     4. Cache new results and publish to Kafka for ES indexing
     5. Return merged results with complete nutrient data
     """
-    return await usda_service.search_by_criteria(criteria)
+    service_criteria = ServiceFoodsByCriteria.model_validate(criteria.model_dump(by_alias=True))
+    results = await usda_service.search_by_criteria(service_criteria)
+    return [SearchResultFood.model_validate(item.model_dump(by_alias=True)) for item in results]

@@ -6,6 +6,8 @@ disable=
     C0103,  # invalid-name (allow _private vars)
     W1203,  # logging-fstring-interpolation (we use f-strings)
     R0801,  # duplicate-code (models are intentionally duplicated)
+    W0212,  # protected-access (necessary for framework internals)
+    W0718,  # broad-exception-caught (intentional for middleware/logging)
 
 [FORMAT]
 max-line-length=150

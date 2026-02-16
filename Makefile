@@ -1,4 +1,4 @@
-.PHONY: help up down restart build rebuild logs ps clean clean-all shell-fastapi shell-go shell-react db-shell redis-shell test lint format type-check security sonarqube
+.PHONY: help up down restart build rebuild logs ps clean clean-all shell-fastapi shell-go shell-react db-shell redis-shell test lint format type-check security sonarqube pre-commit-install pre-commit-run
 
 up: ## Start all services
 	docker-compose down -v
@@ -95,3 +95,9 @@ sonarqube-scan: ## Run SonarQube analysis (requires sonar-scanner)
 	python -m pytest --cov=app --cov-report=xml && \
 	python -m pylint app/ --exit-zero -f parseable > pylint-report.txt && \
 	sonar-scanner -Dsonar.projectBaseDir=.
+
+pre-commit-install: ## Install pre-commit hooks
+	python -c "import pre_commit.main; pre_commit.main.main(['install'])"
+
+pre-commit-run: ## Run pre-commit checks on all files
+	python -c "import pre_commit.main; pre_commit.main.main(['run', '--all-files'])"

@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+
 from aiokafka import AIOKafkaConsumer
 
 from app.core.config import settings
@@ -22,7 +23,7 @@ async def consume_ingredient_events():
         bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
         value_deserializer=lambda m: json.loads(m.decode()),
         group_id="elasticsearch-indexer",
-        auto_offset_reset="earliest"
+        auto_offset_reset="earliest",
     )
 
     await consumer.start()

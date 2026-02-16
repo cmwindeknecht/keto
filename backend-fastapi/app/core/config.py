@@ -51,6 +51,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         case_sensitive=True,
+        extra="ignore",
         env_file=[
             str(Path(__file__).resolve().parents[3] / ".env"),
             str(Path(__file__).resolve().parents[3] / ".env.local"),
