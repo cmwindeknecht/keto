@@ -136,11 +136,13 @@ class ElasticsearchService:
                     "name": source["name"],
                     "data_type": source["data_type"]
                 })
+                
+            logger.info(f"Elasticsearch search for query '{query}' returned {len(results)} results")
 
             return results
 
         except Exception as e:
-            print(f"✗ Error searching Elasticsearch: {e}")
+            logger.error(f"Error searching Elasticsearch: {e}")
             return []
 
     async def index_ingredient(self, usda_data: dict):
@@ -176,10 +178,10 @@ class ElasticsearchService:
                 document=document
             )
 
-            print(f"✓ Indexed ingredient {fdc_id} in Elasticsearch")
+            logger.info(f"Indexed ingredient {fdc_id} in Elasticsearch")
 
         except Exception as e:
-            print(f"✗ Error indexing ingredient {usda_data.get('fdcId')}: {e}")
+            logger.error(f"Error indexing ingredient {usda_data.get('fdcId')}: {e}")
             raise
 
     async def delete_index(self):
@@ -191,9 +193,9 @@ class ElasticsearchService:
             exists = await self._client.indices.exists(index=self.INDEX_NAME)
             if exists:
                 await self._client.indices.delete(index=self.INDEX_NAME)
-                print(f"✓ Deleted Elasticsearch index: {self.INDEX_NAME}")
+                logger.info(f"Deleted Elasticsearch index: {self.INDEX_NAME}")
         except Exception as e:
-            print(f"✗ Error deleting index: {e}")
+            logger.error(f"Error deleting index: {e}")
             raise
 
 

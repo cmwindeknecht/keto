@@ -4,8 +4,10 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.db.models import Cuisine
+from app.services.usda.models.responses import SearchResultFood
 
 
+# Recipe Route Response Models
 class NutrientInfo(BaseModel):
     """Single nutrient with amount and unit."""
 

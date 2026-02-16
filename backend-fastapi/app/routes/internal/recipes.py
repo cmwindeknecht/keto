@@ -4,8 +4,17 @@ from fastapi import APIRouter, Depends, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
-from app.routes.models.requests import RecipeCreate, RecipeUpdate, RecipeIngredientInput
-from app.routes.models.responses import RecipeResponse
+from app.routes.models.requests import (
+    RecipeCreate as RouteRecipeCreate,
+    RecipeUpdate as RouteRecipeUpdate,
+    RecipeIngredientInput as RouteRecipeIngredientInput,
+)
+from app.routes.models.responses import RecipeResponse as RouteRecipeResponse
+from app.services.recipe.models.requests import (
+    RecipeCreate as ServiceRecipeCreate,
+    RecipeUpdate as ServiceRecipeUpdate,
+    RecipeIngredientInput as ServiceRecipeIngredientInput,
+)
 from app.services.recipe.recipe_service import recipe_service
 
 router = APIRouter(
@@ -16,70 +25,75 @@ router = APIRouter(
 
 @router.post(
     "",
-    response_model=RecipeResponse,
+    response_model=RouteRecipeResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new recipe",
 )
 async def create_recipe(
-    request: RecipeCreate = Body(
+    request: RouteRecipeCreate = Body(
         ...,
         example={
-            "name": "Cabbage and Cheese",
+            "name": "Cabbage",
             "cuisine": "MEXICAN",
-            "description": "cabbage and cheese",
+            "description": "A bunch of cabbage",
             "ingredients": [
-                {"usda_fdc_id": 2406937, "quantity_grams": 200},
-                {"usda_fdc_id": 2057648, "quantity_grams": 100}
+                {"usda_fdc_id": 2346407, "quantity_grams": 200}
             ]
         }
     ),
     session: AsyncSession = Depends(get_db),
-) -> RecipeResponse:
+) -> RouteRecipeResponse:
     """Create a new recipe with ingredients."""
-    return await recipe_service.create_recipe(session, request)
+    service_request = ServiceRecipeCreate.model_validate(request)
+    service_response = await recipe_service.create_recipe(session, service_request)
+    return RouteRecipeResponse.model_validate(service_response)
 
 
 @router.get(
     "/{recipe_id}",
-    response_model=RecipeResponse,
+    response_model=RouteRecipeResponse,
     status_code=status.HTTP_200_OK,
     summary="Get recipe by ID",
 )
 async def get_recipe(
     recipe_id: int,
     session: AsyncSession = Depends(get_db),
-) -> RecipeResponse:
+) -> RouteRecipeResponse:
     """Get a recipe by ID with all ingredients and nutrition calculated."""
-    return await recipe_service.get_recipe(session, recipe_id)
+    service_response = await recipe_service.get_recipe(session, recipe_id)
+    return RouteRecipeResponse.model_validate(service_response)
 
 
 @router.get(
     "",
-    response_model=list[RecipeResponse],
+    response_model=list[RouteRecipeResponse],
     status_code=status.HTTP_200_OK,
     summary="List recipes",
 )
 async def list_recipes(
     cuisine: Optional[str] = None,
     session: AsyncSession = Depends(get_db),
-) -> list[RecipeResponse]:
+) -> list[RouteRecipeResponse]:
     """List all recipes, optionally filtered by cuisine."""
-    return await recipe_service.list_recipes(session, cuisine)
+    service_responses = await recipe_service.list_recipes(session, cuisine)
+    return [RouteRecipeResponse.model_validate(item) for item in service_responses]
 
 
 @router.put(
     "/{recipe_id}",
-    response_model=RecipeResponse,
+    response_model=RouteRecipeResponse,
     status_code=status.HTTP_200_OK,
     summary="Update recipe",
 )
 async def update_recipe(
     recipe_id: int,
-    request: RecipeUpdate,
+    request: RouteRecipeUpdate,
     session: AsyncSession = Depends(get_db),
-) -> RecipeResponse:
+) -> RouteRecipeResponse:
     """Update recipe details (name, cuisine, description)."""
-    return await recipe_service.update_recipe(session, recipe_id, request)
+    service_request = ServiceRecipeUpdate.model_validate(request)
+    service_response = await recipe_service.update_recipe(session, recipe_id, service_request)
+    return RouteRecipeResponse.model_validate(service_response)
 
 
 @router.delete(
@@ -97,22 +111,24 @@ async def delete_recipe(
 
 @router.post(
     "/{recipe_id}/ingredients",
-    response_model=RecipeResponse,
+    response_model=RouteRecipeResponse,
     status_code=status.HTTP_200_OK,
     summary="Add ingredient to recipe",
 )
 async def add_ingredient_to_recipe(
     recipe_id: int,
-    request: RecipeIngredientInput,
+    request: RouteRecipeIngredientInput,
     session: AsyncSession = Depends(get_db),
-) -> RecipeResponse:
+) -> RouteRecipeResponse:
     """Add an ingredient to an existing recipe."""
-    return await recipe_service.add_ingredient_to_recipe(session, recipe_id, request)
+    service_request = ServiceRecipeIngredientInput.model_validate(request)
+    service_response = await recipe_service.add_ingredient_to_recipe(session, recipe_id, service_request)
+    return RouteRecipeResponse.model_validate(service_response)
 
 
 @router.delete(
     "/{recipe_id}/ingredients/{ingredient_id}",
-    response_model=RecipeResponse,
+    response_model=RouteRecipeResponse,
     status_code=status.HTTP_200_OK,
     summary="Remove ingredient from recipe",
 )
@@ -120,6 +136,7 @@ async def remove_ingredient_from_recipe(
     recipe_id: int,
     ingredient_id: int,
     session: AsyncSession = Depends(get_db),
-) -> RecipeResponse:
+) -> RouteRecipeResponse:
     """Remove an ingredient from a recipe."""
-    return await recipe_service.remove_ingredient_from_recipe(session, recipe_id, ingredient_id)
+    service_response = await recipe_service.remove_ingredient_from_recipe(session, recipe_id, ingredient_id)
+    return RouteRecipeResponse.model_validate(service_response)

@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from venv import logger
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -48,17 +49,20 @@ class DatabaseManager:
         self.async_session = sessionmaker(
             self.engine, class_=AsyncSession, expire_on_commit=False, future=True
         )
+        logger.debug("Database engine and session factory initialized")
 
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
         """Get a new database session."""
         if self.async_session is None:
             await self.initialize()
         async with self.async_session() as session:
+            logger.debug("Created new database session")
             yield session
 
     async def close(self):
         """Close the database connection pool."""
         if self.engine:
+            logger.debug("Closing database connection pool")
             await self.engine.dispose()
 
 

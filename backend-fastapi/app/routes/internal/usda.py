@@ -1,9 +1,9 @@
 """Routes for USDA FoodData Central API integration."""
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, status
 
-from app.services.usda.models.requests import FoodsByFdcID, FoodsByCriteria
-from app.services.usda.models.responses import SearchResultFood
+from app.routes.models.requests import FoodsByFdcID, FoodsByCriteria
+from app.routes.models.responses import SearchResultFood
 from app.services.usda.usda_service import usda_service
 
 router = APIRouter(

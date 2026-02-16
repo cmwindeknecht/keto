@@ -3,8 +3,10 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.db.models import Cuisine
+from app.services.usda.models.requests import FoodsByFdcID, FoodsByCriteria
 
 
+# Recipe Route Models
 class RecipeIngredientInput(BaseModel):
     """Input for adding an ingredient to a recipe."""
 

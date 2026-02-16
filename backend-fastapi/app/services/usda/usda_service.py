@@ -76,8 +76,10 @@ class USDAService:
                     
         # All ingredients were found in cache
         if len(missing_fdc_ids) == 0:
+            logger.info(f"All {len(cached_ingredients)} ingredients found in cache for FDC IDs: {criteria.fdc_ids}")
             return cached_ingredients
         
+        logger.info(f"{len(cached_ingredients)} ingredients found in cache, {len(missing_fdc_ids)} missing for FDC IDs: {criteria.fdc_ids}")
         # Update the critieria to only include missing FDC IDs that need to be fetched from USDA API
         criteria.fdc_ids = missing_fdc_ids
         
@@ -149,8 +151,11 @@ class USDAService:
 
         # If all results found in cache, return early
         if not missing_fdc_ids and results:
+            logger.info(f"All {len(results)} ES search results found in cache for query '{criteria.query}' with data types {data_types}")
             return results
 
+        logger.info(f"{len(results)} ES search results found in cache, {len(missing_fdc_ids)} missing for query '{criteria.query}' with data types {data_types}")
+        
         # Step 3: Query USDA for missing ingredients (or if ES returned nothing)
         url = f"{self.base_url}{self.USDA_FOODS_SEARCH_ENDPOINT}"
 
@@ -170,7 +175,6 @@ class USDAService:
             result_dict = response.json()
             if result_dict.get("foods"):
                 logger.info(f"Got {len(result_dict['foods'])} results from USDA search")
-                logger.debug(f"First result structure: {json.dumps(result_dict['foods'][0], indent=2, default=str)}")
             search_result = SearchResult.model_validate(result_dict)
 
             # Cache and publish each result
@@ -182,7 +186,7 @@ class USDAService:
                     # Cache in Redis
                     await cache_service.set_ingredient(food_dict)
 
-                    # Publish to Kafka (fire-and-forget)
+                    # Publish to Kafka
                     try:
                         await kafka_producer.publish_ingredient_cached(
                             IngredientCached(

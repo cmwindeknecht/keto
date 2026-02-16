@@ -1,17 +1,20 @@
 """Service for recipe business logic and orchestration."""
 
+import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import RecipeNotFoundError, IngredientNotFoundError, DatabaseError
 from app.db.models import Recipe, RecipeIngredient
-from app.routes.models.requests import RecipeCreate, RecipeUpdate, RecipeIngredientInput
-from app.routes.models.responses import RecipeResponse, RecipeIngredientResponse, IngredientResponse, NutrientInfo
+from app.services.recipe.models.requests import RecipeCreate, RecipeUpdate, RecipeIngredientInput
+from app.services.recipe.models.responses import RecipeResponse, RecipeIngredientResponse, IngredientResponse, NutrientInfo
 from app.services.usda.usda_service import usda_service
 from app.services.usda.models.requests import FoodsByFdcID
 from app.services.usda.utils import extract_all_nutrients, calculate_proportional_nutrients, sum_nutrients
 
+
+logger = logging.getLogger(__name__)
 
 class RecipeService:
     """Service for recipe business logic and orchestration."""
@@ -53,9 +56,11 @@ class RecipeService:
 
             await session.flush()
             await session.commit()
+            logger.info(f"Created recipe with ID {recipe.id} and name '{recipe.name}'")
             return await self._recipe_to_response(recipe)
         except Exception as e:
             await session.rollback()
+            logger.error(f"Failed to create recipe with name '{recipe_data.name}': {e}")
             raise DatabaseError(f"Failed to create recipe: {str(e)}")
 
     async def get_recipe(self, session: AsyncSession, recipe_id: int) -> RecipeResponse:
@@ -77,8 +82,10 @@ class RecipeService:
         recipe = result.scalar_one_or_none()
 
         if not recipe:
+            logger.warning(f"Recipe with ID {recipe_id} not found")
             raise RecipeNotFoundError(f"Recipe with ID {recipe_id} not found")
 
+        logger.info(f"Retrieved recipe with ID {recipe_id} and name '{recipe.name}'")
         return await self._recipe_to_response(recipe)
 
     async def update_recipe(self, session: AsyncSession, recipe_id: int, recipe_data: RecipeUpdate) -> RecipeResponse:
@@ -114,11 +121,14 @@ class RecipeService:
 
             await session.commit()
             await session.refresh(recipe, ["recipe_ingredients"])
+            logger.info(f"Updated recipe with ID {recipe_id} and name '{recipe.name}'")
             return await self._recipe_to_response(recipe)
         except RecipeNotFoundError:
+            logger.warning(f"Recipe with ID {recipe_id} not found for update")
             raise
         except Exception as e:
             await session.rollback()
+            logger.error(f"Failed to update recipe with ID {recipe_id}: {e}")
             raise DatabaseError(f"Failed to update recipe: {str(e)}")
 
     async def delete_recipe(self, session: AsyncSession, recipe_id: int) -> None:
@@ -143,10 +153,13 @@ class RecipeService:
 
             await session.delete(recipe)
             await session.commit()
+            logger.info(f"Deleted recipe with ID {recipe_id} and name '{recipe.name}'")
         except RecipeNotFoundError:
+            logger.warning(f"Recipe with ID {recipe_id} not found for deletion")
             raise
         except Exception as e:
             await session.rollback()
+            logger.error(f"Failed to delete recipe with ID {recipe_id}: {e}")
             raise DatabaseError(f"Failed to delete recipe: {str(e)}")
 
     async def list_recipes(self, session: AsyncSession, cuisine: str | None = None) -> list[RecipeResponse]:
@@ -169,8 +182,10 @@ class RecipeService:
                 stmt = stmt.where(Recipe.cuisine == cuisine)
             result = await session.execute(stmt)
             recipes = result.scalars().all()
+            logger.info(f"Listed {len(recipes)} recipes with cuisine filter '{cuisine}'")   
             return [await self._recipe_to_response(recipe) for recipe in recipes]
         except Exception as e:
+            logger.error(f"Failed to list recipes with cuisine filter '{cuisine}': {e}")
             raise DatabaseError(f"Failed to list recipes: {str(e)}")
 
     async def add_ingredient_to_recipe(
@@ -207,11 +222,14 @@ class RecipeService:
             recipe.recipe_ingredients.append(recipe_ingredient)
             await session.flush()
             await session.commit()
+            logger.info(f"Added ingredient with USDA FDC ID {ingredient_input.usda_fdc_id} to recipe ID {recipe_id}")
             return await self._recipe_to_response(recipe)
         except RecipeNotFoundError:
+            logger.warning(f"Recipe with ID {recipe_id} not found for adding ingredient")
             raise
         except Exception as e:
             await session.rollback()
+            logger.error(f"Failed to add ingredient to recipe {recipe_id}: {e}")
             raise DatabaseError(f"Failed to add ingredient: {str(e)}")
 
     async def remove_ingredient_from_recipe(
@@ -252,10 +270,12 @@ class RecipeService:
             recipe.recipe_ingredients.remove(recipe_ingredient)
             await session.flush()
             await session.commit()
-            return await self._recipe_to_response(recipe)
+            logger.info(f"Removed ingredient with ID {ingredient_id} from recipe ID {recipe_id}")
         except (RecipeNotFoundError, IngredientNotFoundError):
+            logger.warning(f"Recipe with ID {recipe_id} or ingredient with ID {ingredient_id} not found for removal")
             raise
         except Exception as e:
+            logger.error(f"Failed to remove ingredient {ingredient_id} from recipe {recipe_id}: {e}")
             await session.rollback()
             raise DatabaseError(f"Failed to remove ingredient: {str(e)}")
 
