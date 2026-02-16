@@ -3,7 +3,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.db.models import Cuisine
-from app.services.usda.models.requests import FoodsByFdcID, FoodsByCriteria
+from app.services.usda.models.requests import FoodsByCriteria, FoodsByFdcID
 
 
 # Recipe Route Models
@@ -35,13 +35,7 @@ class SearchIngredientsRequest(BaseModel):
     """Request to search for ingredients in USDA database."""
 
     query: str = Field(..., min_length=1, description="Ingredient name or keyword to search")
-    data_type: Optional[list[str]] = Field(
-        None,
-        description="Filter by data type: Foundation, SR Legacy, Survey (FNDDS), Branded"
-    )
+    data_type: Optional[list[str]] = Field(None, description="Filter by data type: Foundation, SR Legacy, Survey (FNDDS), Branded")
     brand_owner: Optional[str] = Field(None, description="Filter by brand owner name (for branded foods)")
-    trade_channel: Optional[list[str]] = Field(
-        None,
-        description="Filter by trade channel: CHILD_NUTRITION_FOOD_PROGRAMS, GROCERY, etc."
-    )
+    trade_channel: Optional[list[str]] = Field(None, description="Filter by trade channel: CHILD_NUTRITION_FOOD_PROGRAMS, GROCERY, etc.")
     limit: int = Field(default=20, ge=1, le=100, description="Maximum number of results")

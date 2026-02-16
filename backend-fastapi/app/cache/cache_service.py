@@ -2,11 +2,12 @@
 
 import logging
 from typing import Optional
+
 import redis.asyncio as redis
 
 from app.core.config import settings
-from .models import CachedIngredient
 
+from .models import CachedIngredient
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ class CacheService:
         if not self._redis_client:
             self._redis_client = await redis.from_url(self.redis_url, decode_responses=True)
             logger.debug("Connected to Redis")
-            
+
     async def disconnect(self):
         """Close Redis connection."""
         if self._redis_client:
@@ -66,12 +67,11 @@ class CacheService:
 
         key = self._get_ingredient_key(fdc_id)
         data = await self._redis_client.get(key)
- 
-        
+
         if data:
-            logger.info(f"Retrieved data for key {key}: {data}")  
+            logger.info(f"Retrieved data for key {key}: {data}")
             return CachedIngredient.model_validate_json(data)
-        
+
         logger.info(f"No data found for key {key}")
         return None
 
@@ -92,11 +92,7 @@ class CacheService:
 
         key = self._get_ingredient_key(ingredient.fdc_id)
         try:
-            await self._redis_client.setex(
-                key,
-                self.INGREDIENT_TTL,
-                ingredient.model_dump_json()
-            )
+            await self._redis_client.setex(key, self.INGREDIENT_TTL, ingredient.model_dump_json())
             logger.info(f"Cached ingredient with key {key} and TTL {self.INGREDIENT_TTL} seconds")
             return True
         except Exception as e:

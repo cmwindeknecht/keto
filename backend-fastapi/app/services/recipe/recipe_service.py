@@ -1,20 +1,21 @@
 """Service for recipe business logic and orchestration."""
 
 import logging
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import RecipeNotFoundError, IngredientNotFoundError, DatabaseError
+from app.core.exceptions import DatabaseError, IngredientNotFoundError, RecipeNotFoundError
 from app.db.models import Recipe, RecipeIngredient
-from app.services.recipe.models.requests import RecipeCreate, RecipeUpdate, RecipeIngredientInput
-from app.services.recipe.models.responses import RecipeResponse, RecipeIngredientResponse, IngredientResponse, NutrientInfo
-from app.services.usda.usda_service import usda_service
+from app.services.recipe.models.requests import RecipeCreate, RecipeIngredientInput, RecipeUpdate
+from app.services.recipe.models.responses import IngredientResponse, NutrientInfo, RecipeIngredientResponse, RecipeResponse
 from app.services.usda.models.requests import FoodsByFdcID
-from app.services.usda.utils import extract_all_nutrients, calculate_proportional_nutrients, sum_nutrients
-
+from app.services.usda.usda_service import usda_service
+from app.services.usda.utils import calculate_proportional_nutrients, extract_all_nutrients, sum_nutrients
 
 logger = logging.getLogger(__name__)
+
 
 class RecipeService:
     """Service for recipe business logic and orchestration."""
@@ -182,15 +183,13 @@ class RecipeService:
                 stmt = stmt.where(Recipe.cuisine == cuisine)
             result = await session.execute(stmt)
             recipes = result.scalars().all()
-            logger.info(f"Listed {len(recipes)} recipes with cuisine filter '{cuisine}'")   
+            logger.info(f"Listed {len(recipes)} recipes with cuisine filter '{cuisine}'")
             return [await self._recipe_to_response(recipe) for recipe in recipes]
         except Exception as e:
             logger.error(f"Failed to list recipes with cuisine filter '{cuisine}': {e}")
             raise DatabaseError(f"Failed to list recipes: {str(e)}")
 
-    async def add_ingredient_to_recipe(
-        self, session: AsyncSession, recipe_id: int, ingredient_input: RecipeIngredientInput
-    ) -> RecipeResponse:
+    async def add_ingredient_to_recipe(self, session: AsyncSession, recipe_id: int, ingredient_input: RecipeIngredientInput) -> RecipeResponse:
         """
         Add an ingredient to an existing recipe.
 
@@ -232,9 +231,7 @@ class RecipeService:
             logger.error(f"Failed to add ingredient to recipe {recipe_id}: {e}")
             raise DatabaseError(f"Failed to add ingredient: {str(e)}")
 
-    async def remove_ingredient_from_recipe(
-        self, session: AsyncSession, recipe_id: int, ingredient_id: int
-    ) -> RecipeResponse:
+    async def remove_ingredient_from_recipe(self, session: AsyncSession, recipe_id: int, ingredient_id: int) -> RecipeResponse:
         """
         Remove an ingredient from a recipe.
 
@@ -258,9 +255,7 @@ class RecipeService:
             if not recipe:
                 raise RecipeNotFoundError(f"Recipe with ID {recipe_id} not found")
 
-            stmt = select(RecipeIngredient).where(
-                (RecipeIngredient.recipe_id == recipe_id) & (RecipeIngredient.id == ingredient_id)
-            )
+            stmt = select(RecipeIngredient).where((RecipeIngredient.recipe_id == recipe_id) & (RecipeIngredient.id == ingredient_id))
             result = await session.execute(stmt)
             recipe_ingredient = result.scalar_one_or_none()
 
@@ -326,10 +321,7 @@ class RecipeService:
             per_100g_nutrients = extract_all_nutrients(usda_data)
 
             # Scale to actual quantity
-            scaled_nutrients = calculate_proportional_nutrients(
-                per_100g_nutrients,
-                quantity_grams
-            )
+            scaled_nutrients = calculate_proportional_nutrients(per_100g_nutrients, quantity_grams)
 
             # Add to total
             all_nutrients.append(scaled_nutrients)

@@ -3,6 +3,7 @@
 import json
 import logging
 from typing import Optional
+
 import redis.asyncio as redis
 
 from app.core.config import settings
@@ -21,11 +22,12 @@ class CacheService:
 
     setex() is atomic - if key exists, it overwrites (no duplicate risk).
     """
+
     TTL_STRATEGY = {
-      "Foundation": None,        # Permanent
-      "SR Legacy": None,         # Permanent
-      "Survey (FNDDS)": 180 * 86400,  # 180 days
-      "Branded": 30 * 86400,     # 30 days
+        "Foundation": None,  # Permanent
+        "SR Legacy": None,  # Permanent
+        "Survey (FNDDS)": 180 * 86400,  # 180 days
+        "Branded": 30 * 86400,  # 30 days
     }
 
     # Cache configuration
@@ -72,9 +74,9 @@ class CacheService:
         data = await self._redis_client.get(key)
 
         if data:
-            logger.info(f"Retrieved data for key {key}: {data}")  
+            logger.info(f"Retrieved data for key {key}: {data}")
             return json.loads(data)
-        
+
         logger.info(f"No data found for key {key}")
         return None
 
@@ -93,9 +95,9 @@ class CacheService:
         if not self._redis_client:
             await self.connect()
 
-        fdc_id = ingredient['fdcId']
+        fdc_id = ingredient["fdcId"]
         key = self._get_ingredient_key(fdc_id)
-        ttl = self.TTL_STRATEGY.get(ingredient.get('dataType'), 30 * 86400)
+        ttl = self.TTL_STRATEGY.get(ingredient.get("dataType"), 30 * 86400)
 
         logger.info(f"Caching ingredient {fdc_id} --- ({ingredient})")
 

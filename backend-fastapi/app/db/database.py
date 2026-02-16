@@ -32,12 +32,12 @@ class DatabaseManager:
         self._engine: AsyncEngine | None = None
         self._async_session: sessionmaker | None = None
 
-    async def initialize(self):
+    def initialize(self):
         """
         Initialize the database engine and session factory.
         echo=settings.DEBUG --- When True, logs all SQL statements to stdout. Super useful for debugging locally.
         future=True	--- Enables SQLAlchemy 2.0 style API (more async/await friendly than 1.4 style).
-        pool_pre_ping=True --- Sends a test query before using a connection from the pool. Prevents "connection closed" errors if a connection went stale.
+        pool_pre_ping=True --- Sends a test query. Prevents "connection closed" errors if a connection went stale.
         expire_on_commit=False --- disable SQLAlchemy from clearing object state after commits
         """
         self.engine = create_async_engine(
@@ -46,15 +46,13 @@ class DatabaseManager:
             future=True,
             pool_pre_ping=True,
         )
-        self.async_session = sessionmaker(
-            self.engine, class_=AsyncSession, expire_on_commit=False, future=True
-        )
+        self.async_session = sessionmaker(self.engine, class_=AsyncSession, expire_on_commit=False, future=True)
         logger.debug("Database engine and session factory initialized")
 
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
         """Get a new database session."""
         if self.async_session is None:
-            await self.initialize()
+            self.initialize()
         async with self.async_session() as session:
             logger.debug("Created new database session")
             yield session

@@ -1,24 +1,20 @@
-from contextlib import asynccontextmanager
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.db.database import db_manager
-from app.services.cache.cache_service import cache_service
-from app.services.elasticsearch.es_service import elasticsearch_service
-from app.services.kafka.producer import kafka_producer
 from app.middleware.logging import LoggingMiddleware
 from app.routes.internal import recipes as internal_recipes_routes
 from app.routes.internal import usda as internal_usda_routes
-
+from app.services.cache.cache_service import cache_service
+from app.services.elasticsearch.es_service import elasticsearch_service
+from app.services.kafka.producer import kafka_producer
 
 # Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 # Suppress verbose library logs
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -29,10 +25,10 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
     """Manage application lifecycle (startup/shutdown)."""
     # Startup
-    await db_manager.initialize()
+    db_manager.initialize()
     await cache_service.connect()
     await elasticsearch_service.initialize()
     await kafka_producer.start()

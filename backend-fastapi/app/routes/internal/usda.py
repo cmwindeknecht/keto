@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, status
 
-from app.routes.models.requests import FoodsByFdcID, FoodsByCriteria
+from app.routes.models.requests import FoodsByCriteria, FoodsByFdcID
 from app.routes.models.responses import SearchResultFood
 from app.services.usda.usda_service import usda_service
 

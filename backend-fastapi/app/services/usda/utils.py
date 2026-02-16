@@ -39,24 +39,18 @@ def extract_all_nutrients(usda_data: dict) -> list[dict]:
             amount = food_nutrient.get("value")
 
         if nutrient_name and amount is not None:
-            nutrients.append({
-                "name": nutrient_name,
-                "amount": float(amount),
-                "unit": unit_name
-            })
+            nutrients.append({"name": nutrient_name, "amount": float(amount), "unit": unit_name})
         else:
             if i < 3:
-                logger.debug(f"Skipped nutrient #{i}: name={nutrient_name}, amount={amount}, structure={json.dumps(food_nutrient, indent=2, default=str)}")
-                
+                logger.debug(
+                    f"Skipped nutrient #{i}: name={nutrient_name}, amount={amount}, structure={json.dumps(food_nutrient, indent=2, default=str)}"
+                )
 
     logger.info(f"Extracted {len(nutrients)} valid nutrients from {len(food_nutrients)} total")
     return nutrients
 
 
-def calculate_proportional_nutrients(
-    nutrients: list[dict],
-    quantity_grams: float
-) -> list[dict]:
+def calculate_proportional_nutrients(nutrients: list[dict], quantity_grams: float) -> list[dict]:
     """
     Scale nutrients from per-100g to actual quantity.
 
@@ -68,14 +62,7 @@ def calculate_proportional_nutrients(
         Scaled nutrient list
     """
     ratio = quantity_grams / 100
-    return [
-        {
-            "name": n["name"],
-            "amount": n["amount"] * ratio,
-            "unit": n["unit"]
-        }
-        for n in nutrients
-    ]
+    return [{"name": n["name"], "amount": n["amount"] * ratio, "unit": n["unit"]} for n in nutrients]
 
 
 def sum_nutrients(nutrient_lists: list[list[dict]]) -> list[dict]:
@@ -95,10 +82,6 @@ def sum_nutrients(nutrient_lists: list[list[dict]]) -> list[dict]:
             if name in totals:
                 totals[name]["amount"] += nutrient["amount"]
             else:
-                totals[name] = {
-                    "name": name,
-                    "amount": nutrient["amount"],
-                    "unit": nutrient["unit"]
-                }
+                totals[name] = {"name": name, "amount": nutrient["amount"], "unit": nutrient["unit"]}
 
     return list(totals.values())

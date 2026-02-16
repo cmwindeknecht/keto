@@ -11,21 +11,30 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import Message
 
-
 logger = logging.getLogger(__name__)
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
-    """Middleware to log all requests and responses."""
+    """Middleware to log requests and responses for specific routes."""
+
+    # Paths to log (allowlist)
+    LOG_PATHS = {"/internal/usda", "/internal/recipes"}
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Log request and response with unique request ID."""
+        # Only log requests to specific routes
+        should_log = any(request.url.path.startswith(path) for path in self.LOG_PATHS)
+        if not should_log:
+            return await call_next(request)
+
         request_id = str(uuid4())
 
         # Cache request body for multiple reads
         receive_ = await request._receive()
-        async def receive() -> Message:
+
+        async def receive() -> Message:  # sonarlint: disable=S7503
             return receive_
+
         request._receive = receive
 
         # Execute request and time it
@@ -58,7 +67,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         try:
             log_data["request_body"] = await request.json()
         except Exception:
-            logger.warning(f"Failed to parse request body for logging on request {request_id}")
+            logger.debug(f"Failed to parse request body for logging on request {request_id}")
 
         # Try to add response body
         try:

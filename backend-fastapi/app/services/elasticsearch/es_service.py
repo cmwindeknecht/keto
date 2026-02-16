@@ -2,6 +2,7 @@
 
 import logging
 from typing import Optional
+
 from elasticsearch import AsyncElasticsearch
 
 from app.core.config import settings
@@ -22,29 +23,13 @@ class ElasticsearchService:
         },
         "mappings": {
             "properties": {
-                "fdc_id": {
-                    "type": "keyword"
-                },
-                "name": {
-                    "type": "text",
-                    "fields": {
-                        "keyword": {
-                            "type": "keyword"
-                        }
-                    }
-                },
-                "data_type": {
-                    "type": "keyword"
-                },
-                "search_terms": {
-                    "type": "text"
-                },
-                "nutrients": {
-                    "type": "object",
-                    "enabled": False
-                }
+                "fdc_id": {"type": "keyword"},
+                "name": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
+                "data_type": {"type": "keyword"},
+                "search_terms": {"type": "text"},
+                "nutrients": {"type": "object", "enabled": False},
             }
-        }
+        },
     }
 
     def __init__(self):
@@ -72,10 +57,7 @@ class ElasticsearchService:
         try:
             exists = await self._client.indices.exists(index=self.INDEX_NAME)
             if not exists:
-                await self._client.indices.create(
-                    index=self.INDEX_NAME,
-                    **self.INDEX_MAPPING
-                )
+                await self._client.indices.create(index=self.INDEX_NAME, **self.INDEX_MAPPING)
                 logger.info(f"Created Elasticsearch index: {self.INDEX_NAME}")
             else:
                 logger.info(f"Elasticsearch index already exists: {self.INDEX_NAME}")
@@ -83,12 +65,7 @@ class ElasticsearchService:
             logger.error(f"Error initializing Elasticsearch: {e}")
             raise
 
-    async def search_ingredients(
-        self,
-        query: str,
-        data_types: list[str],
-        limit: int = 20
-    ) -> list[dict]:
+    async def search_ingredients(self, query: str, data_types: list[str], limit: int = 20) -> list[dict]:
         """
         Fuzzy search for ingredients with dataType filter.
 
@@ -106,37 +83,18 @@ class ElasticsearchService:
         try:
             search_query = {
                 "bool": {
-                    "must": [
-                        {
-                            "multi_match": {
-                                "query": query,
-                                "fields": ["name^2", "search_terms"],
-                                "fuzziness": "AUTO"
-                            }
-                        }
-                    ],
-                    "filter": [
-                        {"terms": {"data_type": data_types}}
-                    ]
+                    "must": [{"multi_match": {"query": query, "fields": ["name^2", "search_terms"], "fuzziness": "AUTO"}}],
+                    "filter": [{"terms": {"data_type": data_types}}],
                 }
             }
 
-            response = await self._client.search(
-                index=self.INDEX_NAME,
-                query=search_query,
-                size=limit,
-                _source=["fdc_id", "name", "data_type"]
-            )
+            response = await self._client.search(index=self.INDEX_NAME, query=search_query, size=limit, _source=["fdc_id", "name", "data_type"])
 
             results = []
             for hit in response["hits"]["hits"]:
                 source = hit["_source"]
-                results.append({
-                    "fdc_id": source["fdc_id"],
-                    "name": source["name"],
-                    "data_type": source["data_type"]
-                })
-                
+                results.append({"fdc_id": source["fdc_id"], "name": source["name"], "data_type": source["data_type"]})
+
             logger.info(f"Elasticsearch search for query '{query}' returned {len(results)} results")
 
             return results
@@ -169,14 +127,10 @@ class ElasticsearchService:
                 "name": name,
                 "data_type": data_type,
                 "search_terms": search_terms,
-                "nutrients": usda_data.get("foodNutrients", [])
+                "nutrients": usda_data.get("foodNutrients", []),
             }
 
-            await self._client.index(
-                index=self.INDEX_NAME,
-                id=str(fdc_id),
-                document=document
-            )
+            await self._client.index(index=self.INDEX_NAME, id=str(fdc_id), document=document)
 
             logger.info(f"Indexed ingredient {fdc_id} in Elasticsearch")
 

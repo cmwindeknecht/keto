@@ -1,13 +1,16 @@
 """Kafka producer for publishing ingredient events."""
 
 import json
+import logging
 from typing import Optional
-from venv import logger
+
 from aiokafka import AIOKafkaProducer
 from pydantic import BaseModel
-from app.services.kafka.models import IngredientCached
 
 from app.core.config import settings
+from app.services.kafka.models import IngredientCached
+
+logger = logging.getLogger(__name__)
 
 
 class KafkaProducerService:
@@ -22,10 +25,7 @@ class KafkaProducerService:
     async def start(self):
         """Start Kafka producer."""
         if not self.producer:
-            self.producer = AIOKafkaProducer(
-                bootstrap_servers=self.bootstrap_servers,
-                value_serializer=lambda v: json.dumps(v).encode()
-            )
+            self.producer = AIOKafkaProducer(bootstrap_servers=self.bootstrap_servers, value_serializer=lambda v: json.dumps(v).encode())
             await self.producer.start()
             logger.info("Kafka producer started")
 

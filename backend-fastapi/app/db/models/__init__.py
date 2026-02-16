@@ -1,7 +1,9 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Enum as SQLEnum, UniqueConstraint, JSON
+from sqlalchemy import JSON, Column, DateTime
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.db.database import Base
@@ -9,6 +11,7 @@ from app.db.database import Base
 
 class Cuisine(str, Enum):
     """Cuisine types for recipes. Serializes cleanly to JSON."""
+
     MEXICAN = "MEXICAN"
     AMERICAN = "AMERICAN"
     ITALIAN = "ITALIAN"
@@ -37,6 +40,7 @@ class Recipe(Base):
     - Sum for recipe totals
     - Divide by servings for per-serving values
     """
+
     __tablename__ = "recipes"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -63,6 +67,7 @@ class RecipeIngredient(Base):
     - Fetch ingredient from Redis by usda_fdc_id
     - nutrient_contribution = ingredient_nutrient_per_100g * (quantity_grams / 100)
     """
+
     __tablename__ = "recipe_ingredients"
 
     id = Column(Integer, primary_key=True, index=True)

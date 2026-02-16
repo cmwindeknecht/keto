@@ -3,16 +3,18 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class FetchType(Enum):
     GET = "GET"
     POST = "POST"
+
 
 class URL(Enum):
     BY_FDCID = "/v1/food/{fdcId}"
     BY_FDCIDS = "/v1/foods"
     ALL_FOODS = "/v1/foods/list"
     SEARCH = "/v1/foods/search"
-    
+
 
 class Settings(BaseSettings):
     """Application configuration loaded from environment variables with multi-environment support."""
@@ -38,7 +40,7 @@ class Settings(BaseSettings):
         URL.BY_FDCID: FetchType.GET,
         URL.BY_FDCIDS: FetchType.POST,
         URL.ALL_FOODS: FetchType.POST,
-        URL.SEARCH: FetchType.POST
+        URL.SEARCH: FetchType.POST,
     }
     USDA_API_BASE_URL: str = "https://api.nal.usda.gov/fdc"
 

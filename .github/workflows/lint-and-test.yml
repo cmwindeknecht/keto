@@ -1,0 +1,112 @@
+name: Lint and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        cd backend-fastapi
+        pip install -r requirements.txt
+
+    - name: Format check with Black
+      run: |
+        cd backend-fastapi
+        black --check app/ tests/
+
+    - name: Sort imports with isort
+      run: |
+        cd backend-fastapi
+        isort --check-only app/ tests/
+
+    - name: Lint with Pylint
+      run: |
+        cd backend-fastapi
+        pylint app/ --exit-zero
+
+    - name: Lint with Flake8
+      run: |
+        cd backend-fastapi
+        flake8 app/
+
+    - name: Type check with mypy
+      run: |
+        cd backend-fastapi
+        mypy app/ --ignore-missing-imports || true
+
+    - name: Security check with Bandit
+      run: |
+        cd backend-fastapi
+        bandit -r app/ -f json -o bandit-report.json || true
+
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: keto
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ketodb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        cd backend-fastapi
+        pip install -r requirements.txt
+
+    - name: Run tests
+      run: |
+        cd backend-fastapi
+        pytest --cov=app --cov-report=xml --cov-report=term-missing
+      env:
+        DATABASE_URL: postgresql+asyncpg://postgres:ketodb@localhost:5432/keto
+        REDIS_URL: redis://localhost:6379/0
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./backend-fastapi/coverage.xml
+        flags: unittests
+        name: codecov-umbrella
