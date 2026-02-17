@@ -1,5 +1,5 @@
 # Keto Recipe API
-Keto Recipe API with USDA FoodData Central Integration 
+Keto Recipe API with USDA FoodData Central Integration
 
 # Planned Stack
 Languages: Python + FastAPI, Go, Yaml
@@ -12,4 +12,3 @@ Networking: Fastly
 Data: Kafka, Flink
 Datastores: Postgres, Elasticsearch
 Client-side: React+Typescript
-

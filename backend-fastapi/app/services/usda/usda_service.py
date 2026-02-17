@@ -1,40 +1,44 @@
 """Service for interacting with USDA FoodData Central API."""
 
-from functools import wraps
-from datetime import datetime
-import httpx
 import logging
-import json
+from datetime import datetime, timezone
+from functools import wraps
+from typing import Any
+
+import httpx
 
 from app.core.config import settings
 from app.core.exceptions import USDAAPIError
 from app.services.cache.cache_service import cache_service
 from app.services.elasticsearch.es_service import elasticsearch_service
-from app.services.kafka.producer import kafka_producer
 from app.services.kafka.models import IngredientCached
-from .models.requests import FoodsByFdcID, FoodsByCriteria
+from app.services.kafka.producer import kafka_producer
+
+from .models.requests import FoodsByCriteria, FoodsByFdcID
 from .models.responses import SearchResult
 
 logger = logging.getLogger(__name__)
 
 
 def handle_usda_errors(func):
-      """Decorator to handle USDA API errors consistently."""
-      @wraps(func)
-      async def wrapper(*args, **kwargs):
-          self = args[0]
-          url = kwargs.get("url")
-          
-          if not self.api_key:
-              raise USDAAPIError("USDA API key not configured", url=url, status_code=None)
-          
-          try:
-              return await func(*args, **kwargs)
-          except httpx.HTTPStatusError as e:
-              raise USDAAPIError(f"USDA API error: {str(e)}", url=url, status_code=e.response.status_code)
-          except httpx.HTTPError as e:
-              raise USDAAPIError(f"USDA API error: {str(e)}", url=url, status_code=None)
-      return wrapper
+    """Decorator to handle USDA API errors consistently."""
+
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        self = args[0]
+        url = kwargs.get("url")
+
+        if not self.usda_api_key:
+            raise USDAAPIError(url=url, detail="USDA API key not configured", status_code=None)
+
+        try:
+            return await func(*args, **kwargs)
+        except httpx.HTTPStatusError as e:
+            raise USDAAPIError(url=url, detail=f"USDA API error: {str(e)}", status_code=e.response.status_code) from e
+        except httpx.HTTPError as e:
+            raise USDAAPIError(url=url, detail=f"USDA API error: {str(e)}", status_code=None) from e
+
+    return wrapper
 
 
 class USDAService:
@@ -42,16 +46,16 @@ class USDAService:
 
     USDA_FOODS_SEARCH_ENDPOINT = "/v1/foods/search"
     USDA_FOODS_BY_IDS_ENDPOINT = "/v1/foods"
-    
+
     API_KEY = "api_key"
     DEFAULT_TIMEOUT = 10.0  # seconds
 
     def __init__(self):
         self.base_url = settings.USDA_API_BASE_URL
-        self.api_key = settings.USDA_API_KEY
-        
+        self.usda_api_key = settings.USDA_API_KEY
+
     @handle_usda_errors
-    async def search_by_fdcids(self, criteria: FoodsByFdcID, url: str = None) -> list[dict]:
+    async def search_by_fdcids(self, criteria: FoodsByFdcID, url: str | None = None) -> list[dict]:
         """
         Used to get recipe details with stored FdcIDs for ingredients in the recipe
 
@@ -63,8 +67,9 @@ class USDAService:
 
         @Raises: USDAAPIError: If the API call fails
         """
-        url = f"{self.base_url}{self.USDA_FOODS_BY_IDS_ENDPOINT}"
-        
+        if url is None:
+            url = f"{self.base_url}{self.USDA_FOODS_BY_IDS_ENDPOINT}"
+
         cached_ingredients: list[dict] = []
         missing_fdc_ids: list[int] = []
         for fdc_id in criteria.fdc_ids:
@@ -73,34 +78,32 @@ class USDAService:
                 cached_ingredients.append(cached)
             else:
                 missing_fdc_ids.append(fdc_id)
-                    
+
         # All ingredients were found in cache
         if len(missing_fdc_ids) == 0:
+            logger.info(f"All {len(cached_ingredients)} ingredients found in cache for FDC IDs: {criteria.fdc_ids}")
             return cached_ingredients
-        
+
+        logger.info(f"{len(cached_ingredients)} ingredients found in cache, {len(missing_fdc_ids)} missing for FDC IDs: {criteria.fdc_ids}")
         # Update the critieria to only include missing FDC IDs that need to be fetched from USDA API
         criteria.fdc_ids = missing_fdc_ids
-        
+
         async with httpx.AsyncClient(timeout=self.DEFAULT_TIMEOUT) as client:
-                response = await client.post(
-                    url,
-                    json=criteria.model_dump(by_alias=True, exclude_none=True),
-                    params=self.get_api_params(),
-                )
-                response.raise_for_status()
-                
-                for food in response.json():
-                    await cache_service.set_ingredient(food)
-                
-                return response.json()
+            response = await client.post(
+                url,
+                json=criteria.model_dump(by_alias=True, exclude_none=True),
+                params=self.get_api_params(),
+            )
+            response.raise_for_status()
+
+            foods: list[dict[Any, Any]] = response.json()
+            for food in foods:
+                await cache_service.set_ingredient(food)
+
+            return foods
 
     @handle_usda_errors
-    async def search_by_criteria(
-        self,
-        criteria: FoodsByCriteria,
-        url: str = None,
-        include_brands: bool = False
-    ) -> list[dict]:
+    async def search_by_criteria(self, criteria: FoodsByCriteria, url: str | None = None, include_brands: bool = False) -> list[dict]:
         """
         Search for ingredients with Elasticsearch-first strategy.
 
@@ -129,35 +132,24 @@ class USDAService:
             data_types.append("Branded")
 
         # Step 1: Query Elasticsearch for matching ingredient IDs
-        es_results = await elasticsearch_service.search_ingredients(
-            criteria.query,
-            data_types,
-            criteria.page_size or 20
-        )
+        es_results = await elasticsearch_service.search_ingredients(criteria.query, data_types, criteria.page_size or 20)
 
-        results = []
-        missing_fdc_ids = []
+        results, missing_fdc_ids = await self.intersect_results(es_results)
 
-        # Step 2: Try to get full data from cache for ES results
-        for es_result in es_results:
-            fdc_id = es_result["fdc_id"]
-            cached_data = await cache_service.get_ingredient(fdc_id)
-            if cached_data:
-                results.append(cached_data)
-            else:
-                missing_fdc_ids.append(fdc_id)
-
-        # If all results found in cache, return early
+        # If all results found in cache (and ES returned something), return early
         if not missing_fdc_ids and results:
+            logger.info(f"All {len(results)} ES search results found in cache for query '{criteria.query}' with data types {data_types}")
             return results
 
+        logger.info(f"{len(results)} ES search results found in cache, {len(missing_fdc_ids)} missing for query '{criteria.query}'")
+
         # Step 3: Query USDA for missing ingredients (or if ES returned nothing)
-        url = f"{self.base_url}{self.USDA_FOODS_SEARCH_ENDPOINT}"
+        if url is None:
+            url = f"{self.base_url}{self.USDA_FOODS_SEARCH_ENDPOINT}"
 
         async with httpx.AsyncClient(timeout=self.DEFAULT_TIMEOUT) as client:
             request_body = criteria.model_dump(by_alias=True, exclude_none=True)
-            logger.info(f"search_by_criteria request to {url}")
-            logger.debug(f"Request body: {request_body}")
+            logger.info(f"search_by_criteria request to {url}, Request body: {request_body}")
 
             response = await client.post(
                 url,
@@ -170,7 +162,6 @@ class USDAService:
             result_dict = response.json()
             if result_dict.get("foods"):
                 logger.info(f"Got {len(result_dict['foods'])} results from USDA search")
-                logger.debug(f"First result structure: {json.dumps(result_dict['foods'][0], indent=2, default=str)}")
             search_result = SearchResult.model_validate(result_dict)
 
             # Cache and publish each result
@@ -182,14 +173,10 @@ class USDAService:
                     # Cache in Redis
                     await cache_service.set_ingredient(food_dict)
 
-                    # Publish to Kafka (fire-and-forget)
+                    # Publish to Kafka
                     try:
                         await kafka_producer.publish_ingredient_cached(
-                            IngredientCached(
-                                fdc_id=food_dict["fdcId"],
-                                data=food_dict,
-                                cached_at=datetime.utcnow()
-                            )
+                            IngredientCached(fdc_id=food_dict["fdcId"], data=food_dict, cached_at=datetime.now(timezone.utc))
                         )
                     except Exception as e:
                         logger.warning(f"Failed to publish ingredient {food_dict['fdcId']} to Kafka: {e}")
@@ -197,6 +184,21 @@ class USDAService:
                     results.append(food_dict)
 
             return results
+
+    async def intersect_results(self, es_results: list[dict]) -> tuple[list[dict], list[dict]]:
+        results = []
+        missing_fdc_ids = []
+
+        # Step 2: Try to get full data from cache for ES results
+        for es_result in es_results:
+            fdc_id = es_result["fdc_id"]
+            cached_data = await cache_service.get_ingredient(fdc_id)
+            if cached_data:
+                results.append(cached_data)
+            else:
+                missing_fdc_ids.append(fdc_id)
+
+        return results, missing_fdc_ids
 
     async def _fetch_from_usda(self, fdc_id: int) -> dict:
         """
@@ -214,7 +216,7 @@ class USDAService:
             USDAAPIError: If the API call fails
         """
         url = f"{self.base_url}{self.USDA_FOODS_BY_IDS_ENDPOINT}"
-        criteria = FoodsByFdcID(fdc_ids=[fdc_id])
+        criteria = FoodsByFdcID(fdcIds=[fdc_id], format="full")
 
         async with httpx.AsyncClient(timeout=self.DEFAULT_TIMEOUT) as client:
             response = await client.post(
@@ -225,12 +227,13 @@ class USDAService:
             response.raise_for_status()
 
             # USDA returns a list, extract the first item
-            results = response.json()
+            results: list[dict[Any, Any]] = response.json()
             if results:
                 return results[0]
-            raise USDAAPIError(f"Ingredient {fdc_id} not found", url=url, status_code=404)
+            raise USDAAPIError(url=url, detail=f"Ingredient {fdc_id} not found", status_code=404)
 
     def get_api_params(self):
-        return {self.API_KEY: self.api_key}
+        return {self.API_KEY: self.usda_api_key}
+
 
 usda_service = USDAService()

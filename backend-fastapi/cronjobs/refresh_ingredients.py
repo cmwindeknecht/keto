@@ -3,10 +3,12 @@
 import asyncio
 from datetime import datetime
 
+from sqlalchemy import text
+
+from app.db.database import db_manager
 from app.services.cache.cache_service import cache_service
-from app.services.usda.usda_service import usda_service
 from app.services.elasticsearch.es_service import elasticsearch_service
-from app.db.database import SessionLocal
+from app.services.usda.usda_service import usda_service
 
 
 async def refresh_branded_ingredients():
@@ -30,14 +32,15 @@ async def refresh_branded_ingredients():
         await elasticsearch_service.connect()
 
         # Get all FDC IDs used in recipes
-        async with SessionLocal() as db:
-            query = "SELECT DISTINCT usda_fdc_id FROM recipe_ingredients WHERE usda_fdc_id IS NOT NULL"
+        async for db in db_manager.get_session():
+            query = text("SELECT DISTINCT usda_fdc_id FROM recipe_ingredients WHERE usda_fdc_id IS NOT NULL")
             result = await db.execute(query)
             fdc_ids = [row[0] for row in result]
 
         print(f"Checking {len(fdc_ids)} ingredients for refresh...")
 
         refreshed_count = 0
+        assert cache_service._redis_client is not None
         for fdc_id in fdc_ids:
             try:
                 # Check TTL

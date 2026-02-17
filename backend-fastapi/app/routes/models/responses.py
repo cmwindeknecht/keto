@@ -1,11 +1,12 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.models import Cuisine
 
 
+# Recipe Route Response Models
 class NutrientInfo(BaseModel):
     """Single nutrient with amount and unit."""
 
@@ -45,8 +46,7 @@ class RecipeResponse(BaseModel):
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SearchIngredientsResponse(BaseModel):
@@ -54,3 +54,21 @@ class SearchIngredientsResponse(BaseModel):
 
     results: list[IngredientResponse] = Field(..., description="List of matching ingredients")
     total: int = Field(..., description="Total number of results found")
+
+
+# USDA Route Response Models
+class SearchResultFood(BaseModel):
+    """Food item in search results."""
+
+    fdc_id: int = Field(..., alias="fdcId", description="USDA FoodData Central ID")
+    data_type: Optional[str] = Field(None, alias="dataType", description="Food data type")
+    description: str = Field(..., description="Food description")
+    food_nutrients: Optional[list] = Field(None, alias="foodNutrients", description="Nutrient information")
+    publication_date: Optional[str] = Field(None, alias="publicationDate", description="Publication date")
+    brand_owner: Optional[str] = Field(None, alias="brandOwner", description="Brand owner")
+    gtin_upc: Optional[str] = Field(None, alias="gtinUpc", description="GTIN/UPC code")
+    ingredients: Optional[str] = Field(None, description="Ingredients list")
+    ndb_number: Optional[int] = Field(None, alias="ndbNumber", description="NDB number")
+    score: Optional[float] = Field(None, description="Search relevance score")
+
+    model_config = ConfigDict(populate_by_name=True)

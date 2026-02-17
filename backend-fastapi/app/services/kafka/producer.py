@@ -1,12 +1,16 @@
 """Kafka producer for publishing ingredient events."""
 
 import json
+import logging
 from typing import Optional
+
 from aiokafka import AIOKafkaProducer
 from pydantic import BaseModel
-from app.services.kafka.models import IngredientCached
 
 from app.core.config import settings
+from app.services.kafka.models import IngredientCached
+
+logger = logging.getLogger(__name__)
 
 
 class KafkaProducerService:
@@ -21,19 +25,16 @@ class KafkaProducerService:
     async def start(self):
         """Start Kafka producer."""
         if not self.producer:
-            self.producer = AIOKafkaProducer(
-                bootstrap_servers=self.bootstrap_servers,
-                value_serializer=lambda v: json.dumps(v).encode()
-            )
+            self.producer = AIOKafkaProducer(bootstrap_servers=self.bootstrap_servers, value_serializer=lambda v: json.dumps(v).encode())
             await self.producer.start()
-            print("Kafka producer started")
+            logger.info("Kafka producer started")
 
     async def stop(self):
         """Stop Kafka producer."""
         if self.producer:
             await self.producer.stop()
             self.producer = None
-            print("Kafka producer stopped")
+            logger.info("Kafka producer stopped")
 
     async def publish(self, topic: str, event: BaseModel):
         """
@@ -45,12 +46,13 @@ class KafkaProducerService:
         """
         if not self.producer:
             await self.start()
+            assert self.producer is not None
 
         try:
             await self.producer.send(topic, value=event.model_dump())
-            print(f"Published event to topic '{topic}' with data: {event.model_dump()}")
+            logger.debug(f"Published event to topic '{topic}' with data: {event.model_dump()}")
         except Exception as e:
-            print(f"Error publishing to to topic '{topic}' with data: {event.model_dump()} due to exceptiopn {e}")
+            logger.error(f"Error publishing to topic '{topic}' with data: {event.model_dump()} due to exception {e}")
             raise
 
     async def publish_ingredient_cached(self, event: "IngredientCached"):  # noqa: F821

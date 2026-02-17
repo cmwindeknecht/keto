@@ -1,16 +1,16 @@
-.PHONY: help up down restart build rebuild logs ps clean clean-all shell-fastapi shell-go shell-react db-shell redis-shell test
+.PHONY: help up down restart build rebuild logs ps clean clean-all shell-fastapi shell-go shell-react db-shell redis-shell test lint format type-check security sonarqube pre-commit-install pre-commit-run
 
 up: ## Start all services
-	docker-compose down
+	docker-compose down -v
 	docker-compose up -d
 
 restart-build: ## Build all services
-	docker-compose down
+	docker-compose down -v
 	docker-compose build
 	docker-compose up -d
 
 restart-nocache: ## Restart all services
-	docker-compose down
+	docker-compose down -v
 	docker-compose build --no-cache
 	docker-compose up -d
 
@@ -67,3 +67,37 @@ test-react: ## Run React tests
 	docker-compose exec frontend-react npm test
 
 dev: up logs ## Start services and show logs
+
+lint: ## Run all linting checks
+	cd backend-fastapi && python -m pylint app/ || true
+	cd backend-fastapi && python -m flake8 app/
+
+format: ## Format code with black and isort
+	cd backend-fastapi && python -m black app/ tests/
+	cd backend-fastapi && python -m isort app/ tests/
+
+type-check: ## Run type checking with mypy
+	cd backend-fastapi && python -m mypy app/ || true
+
+security: ## Run security checks with bandit
+	cd backend-fastapi && python -m bandit -r app/
+
+lint-fix: format ## Format and lint (alias)
+
+sonarqube-logs: ## Show SonarQube logs
+	docker-compose logs -f sonarqube
+
+sonarqube-status: ## Check SonarQube health
+	curl -s http://localhost:9000/api/system/health | jq .
+
+sonarqube-scan: ## Run SonarQube analysis (requires sonar-scanner)
+	cd backend-fastapi && \
+	python -m pytest --cov=app --cov-report=xml && \
+	python -m pylint app/ --exit-zero -f parseable > pylint-report.txt && \
+	sonar-scanner -Dsonar.projectBaseDir=.
+
+pre-commit-install: ## Install pre-commit hooks
+	python -c "import pre_commit.main; pre_commit.main.main(['install'])"
+
+pre-commit-run: ## Run pre-commit checks on all files
+	python -c "import pre_commit.main; pre_commit.main.main(['run', '--all-files'])"

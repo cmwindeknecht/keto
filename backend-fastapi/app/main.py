@@ -1,29 +1,34 @@
-from contextlib import asynccontextmanager
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 from app.db.database import db_manager
+from app.middleware.logging import LoggingMiddleware
+from app.routes.internal import recipes as internal_recipes_routes
+from app.routes.internal import usda as internal_usda_routes
 from app.services.cache.cache_service import cache_service
 from app.services.elasticsearch.es_service import elasticsearch_service
 from app.services.kafka.producer import kafka_producer
-from app.routes.internal import recipes as internal_recipes_routes
-from app.routes.internal import usda as internal_usda_routes
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+# Suppress verbose library logs
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("aiokafka").setLevel(logging.WARNING)
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
     """Manage application lifecycle (startup/shutdown)."""
     # Startup
-    await db_manager.initialize()
+    db_manager.initialize()
     await cache_service.connect()
     await elasticsearch_service.initialize()
     await kafka_producer.start()
@@ -42,10 +47,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Add logging middleware first so it logs everything
+app.add_middleware(LoggingMiddleware)
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=["*"],  # TODO Configure appropriately for production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -77,7 +85,7 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "app.main:app",
-        host="0.0.0.0",
+        host="0.0.0.0",  # nosec B104 - internal service behind Go gateway
         port=8000,
         reload=settings.DEBUG,
     )

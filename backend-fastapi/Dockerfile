@@ -8,10 +8,16 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
-COPY requirements.txt .
+COPY requirements.txt requirements-dev.txt* .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Install dev dependencies if requirements-dev.txt exists (for local development)
+ARG BUILD_ENV=prod
+RUN if [ "$BUILD_ENV" = "dev" ] && [ -f requirements-dev.txt ]; then \
+    pip install --no-cache-dir -r requirements-dev.txt; \
+    fi
 
 # Copy application
 COPY . .

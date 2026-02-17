@@ -2,7 +2,8 @@
 
 import json
 import logging
-from typing import Optional
+from typing import Any, Optional
+
 import redis.asyncio as redis
 
 from app.core.config import settings
@@ -21,11 +22,12 @@ class CacheService:
 
     setex() is atomic - if key exists, it overwrites (no duplicate risk).
     """
+
     TTL_STRATEGY = {
-      "Foundation": None,        # Permanent
-      "SR Legacy": None,         # Permanent
-      "Survey (FNDDS)": 180 * 86400,  # 180 days
-      "Branded": 30 * 86400,     # 30 days
+        "Foundation": None,  # Permanent
+        "SR Legacy": None,  # Permanent
+        "Survey (FNDDS)": 180 * 86400,  # 180 days
+        "Branded": 30 * 86400,  # 30 days
     }
 
     # Cache configuration
@@ -35,21 +37,26 @@ class CacheService:
     def __init__(self):
         self.redis_url = settings.REDIS_URL
         self._redis_client: Optional[redis.Redis] = None
+        logger.debug(f"CacheService initialized with Redis URL: {self.redis_url}")
 
     async def connect(self):
         """Initialize Redis connection."""
         if not self._redis_client:
             self._redis_client = await redis.from_url(self.redis_url, decode_responses=True)
+            logger.debug("Connected to Redis")
 
     async def disconnect(self):
         """Close Redis connection."""
         if self._redis_client:
             await self._redis_client.close()
             self._redis_client = None
+            logger.debug("Disconnected from Redis")
 
     def _get_ingredient_key(self, fdc_id: int) -> str:
         """Generate cache key for an ingredient."""
-        return f"{self.INGREDIENT_KEY_PREFIX}:{fdc_id}"
+        ingredient_key = f"{self.INGREDIENT_KEY_PREFIX}:{fdc_id}"
+        logger.debug(f"Generated cache key for fdc_id {fdc_id}: {ingredient_key}")
+        return ingredient_key
 
     async def get_ingredient(self, fdc_id: int) -> Optional[dict]:
         """
@@ -62,12 +69,17 @@ class CacheService:
         """
         if not self._redis_client:
             await self.connect()
+            assert self._redis_client is not None
 
         key = self._get_ingredient_key(fdc_id)
         data = await self._redis_client.get(key)
 
         if data:
-            return json.loads(data)
+            logger.info(f"Retrieved data for key {key}: {data}")
+            ingredient_data: dict[Any, Any] = json.loads(data)
+            return ingredient_data
+
+        logger.info(f"No data found for key {key}")
         return None
 
     async def set_ingredient(self, ingredient: dict) -> None:
@@ -84,22 +96,21 @@ class CacheService:
         """
         if not self._redis_client:
             await self.connect()
+            assert self._redis_client is not None
 
-        fdc_id = ingredient['fdcId']
+        fdc_id = ingredient["fdcId"]
         key = self._get_ingredient_key(fdc_id)
-        ttl = self.TTL_STRATEGY.get(ingredient.get('dataType'), 30 * 86400)
-        food_nutrients = ingredient.get('foodNutrients', [])
+        data_type = ingredient.get("dataType", "Branded")
+        ttl = self.TTL_STRATEGY.get(data_type, 30 * 86400)
 
-        logger.info(f"Caching ingredient {fdc_id} ({ingredient.get('description', 'unknown')})")
-        logger.debug(f"Data type: {ingredient.get('dataType')}, TTL: {ttl} seconds")
-        logger.debug(f"Food nutrients count: {len(food_nutrients)}")
-        if food_nutrients:
-            logger.debug(f"First nutrient: {json.dumps(food_nutrients[0], indent=2, default=str)}")
+        logger.info(f"Caching ingredient {fdc_id} --- ({ingredient})")
 
         try:
             if ttl:
+                logger.info(f"Setting ingredient with key {key} and TTL {ttl} seconds")
                 await self._redis_client.setex(key, ttl, json.dumps(ingredient))
             else:
+                logger.info(f"Setting ingredient with key {key} with no TTL (permanent)")
                 await self._redis_client.set(key, json.dumps(ingredient))
         except Exception as e:
             logger.error(f"Error caching ingredient {fdc_id}: {e}")
@@ -113,18 +124,22 @@ class CacheService:
         """
         if not self._redis_client:
             await self.connect()
+            assert self._redis_client is not None
 
         pattern = f"{self.INGREDIENT_KEY_PREFIX}:*"
         keys = await self._redis_client.keys(pattern)
 
         if keys:
-            return await self._redis_client.delete(*keys)
+            logger.info(f"Clearing {len(keys)} cached ingredients")
+            deleted_count: int = await self._redis_client.delete(*keys)
+            return deleted_count
         return 0
 
     async def get_cache_info(self) -> dict:
         """Get Redis cache statistics."""
         if not self._redis_client:
             await self.connect()
+            assert self._redis_client is not None
 
         info = await self._redis_client.info()
         return {

@@ -1,0 +1,11 @@
+# Development and type-checking dependencies
+-r requirements.txt
+
+# Type stubs for mypy
+types-redis>=4.6.0
+
+# Development tools (already in requirements.txt but listed for clarity)
+pytest>=7.4.3
+pytest-asyncio>=0.21.1
+pytest-cov>=4.1.0
+mypy>=1.7.1

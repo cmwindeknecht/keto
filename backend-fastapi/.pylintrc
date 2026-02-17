@@ -1,0 +1,20 @@
+[MASTER]
+disable=
+    C0111,  # missing-docstring (optional)
+    R0903,  # too-few-public-methods (pydantic models)
+    R0913,  # too-many-arguments (common in services)
+    C0103,  # invalid-name (allow _private vars)
+    W1203,  # logging-fstring-interpolation (we use f-strings)
+    R0801,  # duplicate-code (models are intentionally duplicated)
+    W0212,  # protected-access (necessary for framework internals)
+    W0718,  # broad-exception-caught (intentional for middleware/logging)
+
+[FORMAT]
+max-line-length=150
+
+[DESIGN]
+max-attributes=10
+
+[MESSAGES CONTROL]
+disable=
+    fixme
