@@ -93,7 +93,7 @@ def test_extract_all_nutrients_with_flat_structure():
 
 def test_extract_all_nutrients_empty():
     """Test extracting when no nutrients."""
-    usda_data = {"foodNutrients": []}
+    usda_data: dict = {"foodNutrients": []}
 
     nutrients = extract_all_nutrients(usda_data)
 

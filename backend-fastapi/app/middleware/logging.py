@@ -25,7 +25,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         # Only log requests to specific routes
         should_log = any(request.url.path.startswith(path) for path in self.LOG_PATHS)
         if not should_log:
-            return await call_next(request)
+            response: Response = await call_next(request)
+            return response
 
         request_id = str(uuid4())
 

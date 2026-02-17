@@ -80,6 +80,7 @@ class ElasticsearchService:
         """
         if not self._client:
             await self.connect()
+            assert self._client is not None
 
         try:
             search_query = {
@@ -113,6 +114,7 @@ class ElasticsearchService:
         """
         if not self._client:
             await self.connect()
+            assert self._client is not None
 
         try:
             fdc_id = usda_data.get("fdcId")
@@ -143,6 +145,7 @@ class ElasticsearchService:
         """Delete the entire ingredients index (useful for testing)."""
         if not self._client:
             await self.connect()
+            assert self._client is not None
 
         try:
             exists = await self._client.indices.exists(index=self.INDEX_NAME)

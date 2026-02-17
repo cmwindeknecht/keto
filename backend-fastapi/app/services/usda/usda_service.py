@@ -3,6 +3,7 @@
 import logging
 from datetime import datetime, timezone
 from functools import wraps
+from typing import Any
 
 import httpx
 
@@ -95,10 +96,11 @@ class USDAService:
             )
             response.raise_for_status()
 
-            for food in response.json():
+            foods: list[dict[Any, Any]] = response.json()
+            for food in foods:
                 await cache_service.set_ingredient(food)
 
-            return response.json()
+            return foods
 
     @handle_usda_errors
     async def search_by_criteria(self, criteria: FoodsByCriteria, url: str | None = None, include_brands: bool = False) -> list[dict]:
@@ -214,7 +216,7 @@ class USDAService:
             USDAAPIError: If the API call fails
         """
         url = f"{self.base_url}{self.USDA_FOODS_BY_IDS_ENDPOINT}"
-        criteria = FoodsByFdcID(fdc_ids=[fdc_id])
+        criteria = FoodsByFdcID(fdcIds=[fdc_id], format="full")
 
         async with httpx.AsyncClient(timeout=self.DEFAULT_TIMEOUT) as client:
             response = await client.post(
@@ -225,7 +227,7 @@ class USDAService:
             response.raise_for_status()
 
             # USDA returns a list, extract the first item
-            results = response.json()
+            results: list[dict[Any, Any]] = response.json()
             if results:
                 return results[0]
             raise USDAAPIError(url=url, detail=f"Ingredient {fdc_id} not found", status_code=404)

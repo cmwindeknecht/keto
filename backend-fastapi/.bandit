@@ -1,8 +1,9 @@
-[bandit]
-exclude_dirs =
-    /test,
-    /tests
-skip = B101,B601
-
-[bandit:assert_used]
-skips = tests/*
+exclude_dirs:
+  - /test
+  - /tests
+skips:
+  - B101
+  - B601
+assert_used:
+  skips:
+    - tests/*

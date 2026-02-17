@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 import redis.asyncio as redis
 
@@ -76,7 +76,8 @@ class CacheService:
 
         if data:
             logger.info(f"Retrieved data for key {key}: {data}")
-            return json.loads(data)
+            ingredient_data: dict[Any, Any] = json.loads(data)
+            return ingredient_data
 
         logger.info(f"No data found for key {key}")
         return None
@@ -99,7 +100,8 @@ class CacheService:
 
         fdc_id = ingredient["fdcId"]
         key = self._get_ingredient_key(fdc_id)
-        ttl = self.TTL_STRATEGY.get(ingredient.get("dataType"), 30 * 86400)
+        data_type = ingredient.get("dataType", "Branded")
+        ttl = self.TTL_STRATEGY.get(data_type, 30 * 86400)
 
         logger.info(f"Caching ingredient {fdc_id} --- ({ingredient})")
 
@@ -129,7 +131,8 @@ class CacheService:
 
         if keys:
             logger.info(f"Clearing {len(keys)} cached ingredients")
-            return await self._redis_client.delete(*keys)
+            deleted_count: int = await self._redis_client.delete(*keys)
+            return deleted_count
         return 0
 
     async def get_cache_info(self) -> dict:

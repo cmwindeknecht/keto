@@ -354,7 +354,7 @@ class RecipeService:
             }
             return RecipeResponse.model_validate(response_dict)
 
-        criteria = FoodsByFdcID(fdcIds=fdc_ids)
+        criteria = FoodsByFdcID(fdcIds=fdc_ids, format="full")
         usda_results = await usda_service.search_by_fdcids(criteria)
 
         # Map results by FDC ID

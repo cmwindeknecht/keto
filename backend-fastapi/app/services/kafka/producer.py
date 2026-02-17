@@ -46,6 +46,7 @@ class KafkaProducerService:
         """
         if not self.producer:
             await self.start()
+            assert self.producer is not None
 
         try:
             await self.producer.send(topic, value=event.model_dump())
