@@ -183,17 +183,20 @@ async def test_update_recipe_success(test_db_session, sample_recipe_create, samp
         created = await recipe_service.create_recipe(test_db_session, sample_recipe_create)
         recipe_id = created.id
 
-    # Update it
-    update_data = RecipeUpdate(name="Updated Recipe")
-    response = await recipe_service.update_recipe(test_db_session, recipe_id, update_data)
+    # Update it (with mock active so ingredient data can be fetched)
+    with patch("app.services.recipe.recipe_service.usda_service") as mock_usda:
+        mock_usda.search_by_fdcids = AsyncMock(return_value=sample_usda_response)
 
-    assert response.name == "Updated Recipe"
+        update_data = RecipeUpdate(name="Updated Recipe")
+        response = await recipe_service.update_recipe(test_db_session, recipe_id, update_data)
+
+        assert response.name == "Updated Recipe"
 
 
 @pytest.mark.asyncio
 async def test_add_ingredient_to_recipe(test_db_session, sample_recipe_create, sample_usda_response):
     """Test adding ingredient to recipe."""
-    # Create recipe
+    # Create recipe with 2 ingredients
     with patch("app.services.recipe.recipe_service.usda_service") as mock_usda:
         mock_usda.search_by_fdcids = AsyncMock(return_value=sample_usda_response)
 
@@ -201,10 +204,21 @@ async def test_add_ingredient_to_recipe(test_db_session, sample_recipe_create, s
         recipe_id = created.id
         initial_count = len(created.ingredients)
 
-    # Add ingredient
-    new_ingredient = RecipeIngredientInput(usda_fdc_id=2346407, quantity_grams=75)
+    # Add a NEW ingredient (not already in recipe)
+    new_ingredient = RecipeIngredientInput(usda_fdc_id=2346409, quantity_grams=100)
     with patch("app.services.recipe.recipe_service.usda_service") as mock_usda:
-        mock_usda.search_by_fdcids = AsyncMock(return_value=sample_usda_response)
+        # Return all ingredients including the new one
+        all_ingredients = sample_usda_response + [
+            {
+                "fdcId": 2346409,
+                "dataType": "Foundation",
+                "description": "Spinach, raw",
+                "foodNutrients": [
+                    {"nutrientId": 1003, "nutrientName": "Protein", "value": 2.7, "unitName": "G"},
+                ],
+            }
+        ]
+        mock_usda.search_by_fdcids = AsyncMock(return_value=all_ingredients)
 
         response = await recipe_service.add_ingredient_to_recipe(test_db_session, recipe_id, new_ingredient)
 

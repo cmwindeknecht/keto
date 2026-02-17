@@ -60,8 +60,8 @@ class FoodsByFdcID(BaseModel):
 class FoodsByCriteria(BaseModel):
     """Request body for searching foods by criteria."""
 
-    query: str = Field(..., description="Search keywords (e.g., 'apple', 'chicken').")
-    data_type: Optional[list[str]] = Field(None, alias="dataType", description="Filter by food database types.")
+    query: str = Field(..., min_length=1, description="Search keywords (e.g., 'apple', 'chicken').")
+    data_type: Optional[list[str]] = Field(None, alias="dataType", description="Filter by food database types: Foundation, SR Legacy, Survey (FNDDS), Branded", example=["Foundation"])
     brand_owner: Optional[str] = Field(None, alias="brandOwner", description="Filter by brand owner name.")
     page_size: Optional[int] = Field(200, ge=1, le=200, alias="pageSize", description="Number of results per page (1-200).")
     page_number: Optional[int] = Field(None, alias="pageNumber", description="Page number (1-based).")

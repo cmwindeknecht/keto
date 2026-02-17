@@ -120,6 +120,24 @@ async def add_ingredient_to_recipe(
     return RouteRecipeResponse.model_validate(service_response.model_dump())
 
 
+@router.put(
+    "/{recipe_id}/ingredients/{ingredient_id}",
+    response_model=RouteRecipeResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update ingredient quantity in recipe",
+)
+async def update_ingredient_in_recipe(
+    recipe_id: int,
+    ingredient_id: int,
+    request: RouteRecipeIngredientInput,
+    session: AsyncSession = Depends(get_db),
+) -> RouteRecipeResponse:
+    """Update an ingredient's quantity in a recipe."""
+    service_request = ServiceRecipeIngredientInput.model_validate(request.model_dump())
+    service_response = await recipe_service.update_ingredient_in_recipe(session, recipe_id, ingredient_id, service_request)
+    return RouteRecipeResponse.model_validate(service_response.model_dump())
+
+
 @router.delete(
     "/{recipe_id}/ingredients/{ingredient_id}",
     response_model=RouteRecipeResponse,

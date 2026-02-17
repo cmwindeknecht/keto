@@ -134,8 +134,8 @@ class USDAService:
 
         results, missing_fdc_ids = await self.intersect_results(es_results)
 
-        # If all results found in cache, return early
-        if not missing_fdc_ids:
+        # If all results found in cache (and ES returned something), return early
+        if not missing_fdc_ids and results:
             logger.info(f"All {len(results)} ES search results found in cache for query '{criteria.query}' with data types {data_types}")
             return results
 

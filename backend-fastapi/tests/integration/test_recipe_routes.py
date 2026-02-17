@@ -213,7 +213,7 @@ def test_delete_recipe(test_client, sample_usda_response):
 
 
 def test_add_ingredient_to_recipe(test_client, sample_usda_response):
-    """Test adding ingredient to recipe."""
+    """Test adding and updating ingredient in recipe."""
     # Create recipe
     with patch("app.services.recipe.recipe_service.usda_service") as mock_usda:
         mock_usda.search_by_fdcids = AsyncMock(return_value=sample_usda_response)
@@ -227,25 +227,27 @@ def test_add_ingredient_to_recipe(test_client, sample_usda_response):
         }
 
         create_response = test_client.post("/internal/recipes", json=create_payload)
-        recipe_id = create_response.json()["id"]
+        recipe = create_response.json()
+        recipe_id = recipe["id"]
+        ingredient_id = recipe["ingredients"][0]["id"]
 
-    # Add ingredient
+    # Update ingredient quantity
     with patch("app.services.recipe.recipe_service.usda_service") as mock_usda:
         mock_usda.search_by_fdcids = AsyncMock(return_value=sample_usda_response)
 
-        ingredient_payload = {
+        update_payload = {
             "usda_fdc_id": 2346407,
-            "quantity_grams": 75,
+            "quantity_grams": 150,
         }
 
-        response = test_client.post(
-            f"/internal/recipes/{recipe_id}/ingredients",
-            json=ingredient_payload,
+        response = test_client.put(
+            f"/internal/recipes/{recipe_id}/ingredients/{ingredient_id}",
+            json=update_payload,
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["ingredients"]) > 1
+        assert data["ingredients"][0]["quantity_grams"] == 150
 
 
 def test_remove_ingredient_from_recipe(test_client, sample_usda_response):

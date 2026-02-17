@@ -59,6 +59,9 @@ class RecipeService:
             await session.commit()
             logger.info(f"Created recipe with ID {recipe.id} and name '{recipe.name}'")
             return await self._recipe_to_response(recipe)
+        except IngredientNotFoundError:
+            await session.rollback()
+            raise
         except Exception as e:
             await session.rollback()
             logger.error(f"Failed to create recipe with name '{recipe_data.name}': {e}")
@@ -124,8 +127,8 @@ class RecipeService:
             await session.refresh(recipe, ["recipe_ingredients"])
             logger.info(f"Updated recipe with ID {recipe_id} and name '{recipe.name}'")
             return await self._recipe_to_response(recipe)
-        except RecipeNotFoundError:
-            logger.warning(f"Recipe with ID {recipe_id} not found for update")
+        except (RecipeNotFoundError, IngredientNotFoundError):
+            logger.warning(f"Recipe with ID {recipe_id} not found for update or ingredients not found")
             raise
         except Exception as e:
             await session.rollback()
@@ -223,13 +226,59 @@ class RecipeService:
             await session.commit()
             logger.info(f"Added ingredient with USDA FDC ID {ingredient_input.usda_fdc_id} to recipe ID {recipe_id}")
             return await self._recipe_to_response(recipe)
-        except RecipeNotFoundError:
-            logger.warning(f"Recipe with ID {recipe_id} not found for adding ingredient")
+        except (RecipeNotFoundError, IngredientNotFoundError):
+            await session.rollback()
             raise
         except Exception as e:
             await session.rollback()
             logger.error(f"Failed to add ingredient to recipe {recipe_id}: {e}")
             raise DatabaseError(f"Failed to add ingredient: {str(e)}") from e
+
+    async def update_ingredient_in_recipe(self, session: AsyncSession, recipe_id: int, ingredient_id: int, ingredient_input: RecipeIngredientInput) -> RecipeResponse:
+        """
+        Update an ingredient's quantity in a recipe.
+
+        Args:
+            session: Database session
+            recipe_id: ID of recipe
+            ingredient_id: ID of recipe_ingredient to update (from RecipeIngredient.id)
+            ingredient_input: Updated ingredient quantity
+
+        Returns:
+            Updated recipe response
+
+        Raises:
+            RecipeNotFoundError: If recipe not found
+            IngredientNotFoundError: If ingredient not in recipe
+            DatabaseError: If operation fails
+        """
+        try:
+            stmt = select(Recipe).where(Recipe.id == recipe_id)
+            result = await session.execute(stmt)
+            recipe = result.scalar_one_or_none()
+
+            if not recipe:
+                raise RecipeNotFoundError(f"Recipe with ID {recipe_id} not found")
+
+            stmt = select(RecipeIngredient).where((RecipeIngredient.recipe_id == recipe_id) & (RecipeIngredient.id == ingredient_id))
+            result = await session.execute(stmt)
+            recipe_ingredient = result.scalar_one_or_none()
+
+            if not recipe_ingredient:
+                raise IngredientNotFoundError(f"Ingredient {ingredient_id} not in recipe {recipe_id}")
+
+            recipe_ingredient.quantity_grams = ingredient_input.quantity_grams
+            await session.flush()
+            await session.commit()
+            logger.info(f"Updated ingredient with ID {ingredient_id} in recipe ID {recipe_id} to {ingredient_input.quantity_grams}g")
+            return await self._recipe_to_response(recipe)
+        except (RecipeNotFoundError, IngredientNotFoundError):
+            logger.warning(f"Recipe with ID {recipe_id} or ingredient with ID {ingredient_id} not found for update")
+            raise
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Failed to update ingredient {ingredient_id} in recipe {recipe_id}: {e}")
+            raise DatabaseError(f"Failed to update ingredient: {str(e)}") from e
 
     async def remove_ingredient_from_recipe(self, session: AsyncSession, recipe_id: int, ingredient_id: int) -> RecipeResponse:
         """
@@ -274,6 +323,8 @@ class RecipeService:
             await session.rollback()
             raise DatabaseError(f"Failed to remove ingredient: {str(e)}") from e
 
+        return await self._recipe_to_response(recipe)
+
     async def _recipe_to_response(self, recipe: Recipe) -> RecipeResponse:
         """
         Convert Recipe ORM model to RecipeResponse with calculated nutrition totals.
@@ -305,6 +356,11 @@ class RecipeService:
 
         # Map results by FDC ID
         usda_map = {item["fdcId"]: item for item in usda_results}
+
+        # Validate all ingredients were found in cache/USDA
+        missing_fdc_ids = [fdc_id for fdc_id in fdc_ids if fdc_id not in usda_map]
+        if missing_fdc_ids:
+            raise IngredientNotFoundError(f"Ingredients not found in cache or USDA database: {missing_fdc_ids}")
 
         recipe_ingredients = []
         all_nutrients = []

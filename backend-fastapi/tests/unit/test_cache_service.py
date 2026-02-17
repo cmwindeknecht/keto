@@ -48,29 +48,24 @@ async def test_set_ingredient_success(cache_service):
     mock_redis = AsyncMock()
     cache_service._redis_client = mock_redis
 
-    from app.services.cache.models import CachedIngredient
+    ingredient = {"fdcId": 12345, "description": "Test Ingredient", "dataType": "Foundation"}
 
-    ingredient = CachedIngredient(fdc_id=12345, description="Test Ingredient", data_type="Foundation", nutrients={})
+    await cache_service.set_ingredient(ingredient)
 
-    result = await cache_service.set_ingredient(ingredient)
-
-    assert result is True
-    mock_redis.setex.assert_called_once()
+    mock_redis.set.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_set_ingredient_failure(cache_service):
     """Test cache service handles exceptions."""
     mock_redis = AsyncMock()
-    mock_redis.setex.side_effect = Exception("Redis error")
+    mock_redis.set.side_effect = Exception("Redis error")
     cache_service._redis_client = mock_redis
 
-    from app.services.cache.models import CachedIngredient
+    ingredient = {"fdcId": 12345, "description": "Test", "dataType": "Foundation"}
 
-    ingredient = CachedIngredient(fdc_id=12345, description="Test", data_type="Foundation", nutrients={})
-
-    result = await cache_service.set_ingredient(ingredient)
-    assert result is False
+    # Should not raise, just log the error
+    await cache_service.set_ingredient(ingredient)
 
 
 @pytest.mark.asyncio
@@ -79,16 +74,14 @@ async def test_get_ingredient_found(cache_service):
     mock_redis = AsyncMock()
     cache_service._redis_client = mock_redis
 
-    from app.services.cache.models import CachedIngredient
-
-    ingredient = CachedIngredient(fdc_id=12345, description="Test", data_type="Foundation", nutrients={})
-
-    mock_redis.get.return_value = ingredient.model_dump_json()
+    ingredient_data = {"fdcId": 12345, "description": "Test", "dataType": "Foundation"}
+    import json
+    mock_redis.get.return_value = json.dumps(ingredient_data)
 
     result = await cache_service.get_ingredient(12345)
 
     assert result is not None
-    assert result.fdc_id == 12345
+    assert result["fdcId"] == 12345
 
 
 @pytest.mark.asyncio

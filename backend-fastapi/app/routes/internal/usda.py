@@ -25,7 +25,7 @@ async def get_multiple_foods(criteria: RouteFoodsByFdcID):
     """Get detailed information for multiple foods by FDC IDs."""
     service_criteria = ServiceFoodsByFdcID.model_validate(criteria.model_dump(by_alias=True))
     results = await usda_service.search_by_fdcids(service_criteria)
-    return [SearchResultFood.model_validate(item.model_dump(by_alias=True)) for item in results]
+    return [SearchResultFood.model_validate(item) for item in results]
 
 
 @router.post(
@@ -47,4 +47,4 @@ async def search_foods(criteria: RouteFoodsByCriteria):
     """
     service_criteria = ServiceFoodsByCriteria.model_validate(criteria.model_dump(by_alias=True))
     results = await usda_service.search_by_criteria(service_criteria)
-    return [SearchResultFood.model_validate(item.model_dump(by_alias=True)) for item in results]
+    return [SearchResultFood.model_validate(item) for item in results]
