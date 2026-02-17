@@ -2,12 +2,15 @@
 
 import asyncio
 import json
+import logging
 
 from aiokafka import AIOKafkaConsumer
 
 from app.core.config import settings
 from app.services.elasticsearch.es_service import elasticsearch_service
 from app.services.kafka.models import IngredientCached
+
+logger = logging.getLogger(__name__)
 
 
 async def consume_ingredient_events():
@@ -27,7 +30,7 @@ async def consume_ingredient_events():
     )
 
     await consumer.start()
-    print("✓ Elasticsearch consumer started")
+    logger.info("Elasticsearch consumer started")
 
     try:
         async for message in consumer:
@@ -36,21 +39,22 @@ async def consume_ingredient_events():
                 event_data = message.value
                 event = IngredientCached(**event_data)
 
-                print(f"Indexing ingredient {event.fdc_id} in Elasticsearch")
+                logger.debug(f"Indexing ingredient {event.fdc_id} in Elasticsearch")
 
                 # Index the ingredient
                 await elasticsearch_service.index_ingredient(event.data)
-                print(f"✓ Indexed {event.fdc_id}")
+                logger.debug(f"Successfully indexed ingredient {event.fdc_id}")
 
             except Exception as e:
-                print(f"✗ Failed to process event: {e}")
+                logger.warning(f"Failed to process event: {e}")
                 # Continue processing next message instead of crashing
 
     except asyncio.CancelledError:
-        print("Elasticsearch consumer shutting down...")
+        logger.error("Elasticsearch consumer cancelled, shutting down...")
+        raise
     finally:
         await consumer.stop()
-        print("✓ Elasticsearch consumer stopped")
+        logger.info("Elasticsearch consumer stopped")
 
 
 if __name__ == "__main__":

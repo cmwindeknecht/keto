@@ -4,12 +4,10 @@ FROM node:20-alpine AS development
 WORKDIR /app
 
 # Copy package files
-COPY frontend-react/package.json frontend-react/package-lock.json* frontend-react/yarn.lock* ./
+COPY frontend-react/package.json frontend-react/package-lock.json* ./
 
 # Install dependencies
-RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
-    elif [ -f package-lock.json ]; then npm ci; \
-    else npm install; fi
+RUN npm ci || npm install
 
 # Copy application code
 COPY frontend-react/ .
@@ -22,31 +20,44 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
 
 # Start development server
-CMD ["npm", "start"]
+CMD ["npm", "run", "dev"]
 
 # Production build stage
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY frontend-react/package.json frontend-react/package-lock.json* frontend-react/yarn.lock* ./
+# Copy env files for build
+COPY .env .env.local* ./
 
-RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
-    elif [ -f package-lock.json ]; then npm ci; \
-    else npm install; fi
+COPY frontend-react/package.json frontend-react/package-lock.json* ./
+
+RUN npm ci || npm install
 
 COPY frontend-react/ .
 
+# Build Next.js app (uses NEXT_PUBLIC_* from .env.local)
 RUN npm run build
 
 # Production runtime stage
-FROM nginx:alpine AS production
+FROM node:20-alpine AS production
 
-COPY --from=builder /app/build /usr/share/nginx/html
+WORKDIR /app
 
-# Copy custom nginx config if needed
-# COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+# Copy node_modules from builder
+COPY --from=builder /app/node_modules ./node_modules
 
-EXPOSE 80
+# Copy built app from builder
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/public ./public
 
-CMD ["nginx", "-g", "daemon off;"]
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
+
+# Start Next.js production server
+CMD ["npm", "start"]

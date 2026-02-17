@@ -51,6 +51,7 @@ func main() {
 	router := chi.NewRouter()
 
 	// Add global middleware (must be before routes)
+	router.Use(middleware.CORSMiddleware())
 	router.Use(middleware.LoggingMiddleware())
 
 	// Public endpoints (no auth required)
