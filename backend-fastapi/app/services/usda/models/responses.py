@@ -1,6 +1,6 @@
 """Pydantic models for USDA API responses."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Nutrient(BaseModel):
@@ -12,8 +12,7 @@ class Nutrient(BaseModel):
     rank: int | None = None
     unit_name: str | None = Field(None, alias="unitName")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class AbridgedFoodNutrient(BaseModel):
@@ -32,8 +31,7 @@ class AbridgedFoodNutrient(BaseModel):
     derivation_code: str | None = Field(None, alias="derivationCode")
     derivation_description: str | None = Field(None, alias="derivationDescription")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class FoodNutrientDerivation(BaseModel):
@@ -48,8 +46,7 @@ class FoodNutrientDerivation(BaseModel):
     code: str | None = None
     description: str | None = None
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class FoodNutrient(BaseModel):
@@ -70,8 +67,7 @@ class FoodNutrient(BaseModel):
     nutrient: Nutrient | None = None
     food_nutrient_derivation: FoodNutrientDerivation | None = Field(None, alias="foodNutrientDerivation")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class FoodCategory(BaseModel):
@@ -98,8 +94,7 @@ class FoodPortion(BaseModel):
     gram_weight: float | None = Field(None, alias="gramWeight")
     portion_description: str | None = Field(None, alias="portionDescription")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class AbridgedFoodItem(BaseModel):
@@ -124,8 +119,7 @@ class AbridgedFoodItem(BaseModel):
     ndb_number: int | None = Field(None, alias="ndbNumber")
     food_code: str | None = Field(None, alias="foodCode")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class BrandedFoodItem(BaseModel):
@@ -150,8 +144,7 @@ class BrandedFoodItem(BaseModel):
     ingredients: str | None = None
     branded_food_category: str | None = Field(None, alias="brandedFoodCategory")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class FoundationFoodItem(BaseModel):
@@ -174,8 +167,7 @@ class FoundationFoodItem(BaseModel):
     food_category: FoodCategory | None = Field(None, alias="foodCategory")
     food_portions: list[FoodPortion] | None = Field(None, alias="foodPortions")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SRLegacyFoodItem(BaseModel):
@@ -196,8 +188,7 @@ class SRLegacyFoodItem(BaseModel):
     scientific_name: str | None = Field(None, alias="scientificName")
     food_nutrients: list[FoodNutrient] | None = Field(None, alias="foodNutrients")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SurveyFoodItem(BaseModel):
@@ -217,8 +208,7 @@ class SurveyFoodItem(BaseModel):
     food_code: str | None = Field(None, alias="foodCode")
     food_nutrients: list[FoodNutrient] | None = Field(None, alias="foodNutrients")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SearchResultFood(BaseModel):
@@ -240,8 +230,7 @@ class SearchResultFood(BaseModel):
     ndb_number: int | None = Field(None, alias="ndbNumber")
     score: float | None = None
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SearchResult(BaseModel):
@@ -260,5 +249,4 @@ class SearchResult(BaseModel):
     total_pages: int | None = Field(None, alias="totalPages")
     foods: list[SearchResultFood]
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)

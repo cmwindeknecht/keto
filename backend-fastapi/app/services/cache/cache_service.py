@@ -69,6 +69,7 @@ class CacheService:
         """
         if not self._redis_client:
             await self.connect()
+            assert self._redis_client is not None
 
         key = self._get_ingredient_key(fdc_id)
         data = await self._redis_client.get(key)
@@ -94,6 +95,7 @@ class CacheService:
         """
         if not self._redis_client:
             await self.connect()
+            assert self._redis_client is not None
 
         fdc_id = ingredient["fdcId"]
         key = self._get_ingredient_key(fdc_id)
@@ -120,6 +122,7 @@ class CacheService:
         """
         if not self._redis_client:
             await self.connect()
+            assert self._redis_client is not None
 
         pattern = f"{self.INGREDIENT_KEY_PREFIX}:*"
         keys = await self._redis_client.keys(pattern)
@@ -133,6 +136,7 @@ class CacheService:
         """Get Redis cache statistics."""
         if not self._redis_client:
             await self.connect()
+            assert self._redis_client is not None
 
         info = await self._redis_client.info()
         return {

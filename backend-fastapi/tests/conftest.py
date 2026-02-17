@@ -1,7 +1,7 @@
 """Shared test fixtures and configuration."""
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -73,6 +73,13 @@ def test_client(event_loop):
     client = TestClient(app)
     yield client
     app.dependency_overrides.clear()
+
+    # Cleanup engine
+    async def cleanup():
+        engine = AsyncSessionLocal.kw["bind"]
+        await engine.dispose()
+
+    event_loop.run_until_complete(cleanup())
 
 
 @pytest.fixture

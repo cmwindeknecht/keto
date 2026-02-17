@@ -1,6 +1,5 @@
 """Integration tests for recipe routes."""
 
-import json
 from unittest.mock import AsyncMock, patch
 
 import pytest

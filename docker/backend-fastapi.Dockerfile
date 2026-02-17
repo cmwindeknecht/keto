@@ -10,9 +10,16 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements first for better caching
 COPY backend-fastapi/requirements.txt .
+COPY backend-fastapi/requirements-dev.txt* .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Install dev dependencies if BUILD_ENV=dev (for local development with pre-commit hooks and type checking)
+ARG BUILD_ENV=prod
+RUN if [ "$BUILD_ENV" = "dev" ] && [ -f requirements-dev.txt ]; then \
+    pip install --no-cache-dir -r requirements-dev.txt; \
+    fi
 
 # Copy application code
 COPY backend-fastapi/ .

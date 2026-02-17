@@ -76,6 +76,7 @@ async def test_get_ingredient_found(cache_service):
 
     ingredient_data = {"fdcId": 12345, "description": "Test", "dataType": "Foundation"}
     import json
+
     mock_redis.get.return_value = json.dumps(ingredient_data)
 
     result = await cache_service.get_ingredient(12345)

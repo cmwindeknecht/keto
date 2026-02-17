@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.db.database import Base
 
 # Register models with alembic
-from app.db.models import Recipe, RecipeIngredient
+from app.db.models import Recipe, RecipeIngredient  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

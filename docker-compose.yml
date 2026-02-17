@@ -134,6 +134,8 @@ services:
     build:
       context: .
       dockerfile: docker/backend-fastapi.Dockerfile
+      args:
+        - BUILD_ENV=dev
     container_name: keto-backend-fastapi
     ports:
       - "8000:8000"

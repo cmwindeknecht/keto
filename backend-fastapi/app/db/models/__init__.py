@@ -4,7 +4,7 @@ from enum import Enum
 from sqlalchemy import Column, DateTime
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, relationship
 
 from app.db.database import Base
 
@@ -45,7 +45,7 @@ class Recipe(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False, index=True)
-    cuisine = Column(SQLEnum(Cuisine), nullable=False, default=Cuisine.OTHER)
+    cuisine: Mapped[Cuisine] = Column(SQLEnum(Cuisine), nullable=False, default=Cuisine.OTHER)
     description = Column(String, nullable=True)
     servings = Column(Integer, nullable=False, default=1)
     rating = Column(Integer, nullable=False, default=0)  # 0-100 keto rating

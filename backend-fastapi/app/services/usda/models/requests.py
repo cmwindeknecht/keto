@@ -1,6 +1,6 @@
 """Pydantic models for USDA API requests."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class FoodsByFdcID(BaseModel):
@@ -8,8 +8,8 @@ class FoodsByFdcID(BaseModel):
 
     fdc_ids: list[int] = Field(
         ...,
-        min_items=1,
-        max_items=20,
+        min_length=1,
+        max_length=20,
         alias="fdcIds",
         description="List of USDA FoodData Central IDs to retrieve (1-20 IDs per request).",
         examples=[[2706337, 2706340]],
@@ -18,8 +18,7 @@ class FoodsByFdcID(BaseModel):
         "full", pattern="^(abridged|full)$", description="Response format: 'abridged' (basic info) or 'full' (detailed nutrition data)."
     )
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class FoodsByCriteria(BaseModel):
@@ -45,5 +44,4 @@ class FoodsByCriteria(BaseModel):
         None, pattern="^(asc|desc)$", alias="sortOrder", description="Sort order: 'asc' (ascending) or 'desc' (descending)."
     )
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)

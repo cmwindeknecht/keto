@@ -53,6 +53,7 @@ class ElasticsearchService:
     async def initialize(self):
         """Create index with fuzzy search mapping if it doesn't exist."""
         await self.connect()
+        assert self._client is not None
 
         try:
             exists = await self._client.indices.exists(index=self.INDEX_NAME)

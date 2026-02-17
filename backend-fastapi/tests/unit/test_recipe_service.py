@@ -1,12 +1,11 @@
 """Unit tests for recipe service."""
 
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from app.core.exceptions import IngredientNotFoundError, RecipeNotFoundError
-from app.db.models import Cuisine, Recipe, RecipeIngredient
+from app.db.models import Cuisine
 from app.services.recipe.models.requests import RecipeCreate, RecipeIngredientInput
 from app.services.recipe.recipe_service import recipe_service
 
@@ -187,7 +186,7 @@ async def test_update_recipe_success(test_db_session, sample_recipe_create, samp
     with patch("app.services.recipe.recipe_service.usda_service") as mock_usda:
         mock_usda.search_by_fdcids = AsyncMock(return_value=sample_usda_response)
 
-        update_data = RecipeUpdate(name="Updated Recipe")
+        update_data = RecipeUpdate(name="Updated Recipe", cuisine=None, description=None)
         response = await recipe_service.update_recipe(test_db_session, recipe_id, update_data)
 
         assert response.name == "Updated Recipe"

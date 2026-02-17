@@ -14,12 +14,16 @@ Base = declarative_base()
 class DatabaseManager:
     """Manages database connections and sessions."""
 
+    def __init__(self):
+        self._engine: AsyncEngine | None = None
+        self._async_session: async_sessionmaker | None = None
+
     @property
     def engine(self) -> AsyncEngine | None:
         return self._engine
 
     @engine.setter
-    def engine(self, value: AsyncEngine) -> None:
+    def engine(self, value: AsyncEngine | None) -> None:
         self._engine = value
 
     @property
@@ -27,12 +31,8 @@ class DatabaseManager:
         return self._async_session
 
     @async_session.setter
-    def async_session(self, value: async_sessionmaker) -> None:
+    def async_session(self, value: async_sessionmaker | None) -> None:
         self._async_session = value
-
-    def __init__(self):
-        self._engine: AsyncEngine | None = None
-        self._async_session: async_sessionmaker | None = None
 
     def initialize(self):
         """
@@ -55,7 +55,8 @@ class DatabaseManager:
         """Get a new database session."""
         if self.async_session is None:
             self.initialize()
-        async with self.async_session() as session:  # pylint: disable=E1102
+        assert self.async_session is not None
+        async with self.async_session() as session:
             logger.debug("Created new database session")
             yield session
 

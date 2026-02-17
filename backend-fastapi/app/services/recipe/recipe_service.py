@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.core.exceptions import DatabaseError, IngredientNotFoundError, RecipeNotFoundError
 from app.db.models import Recipe, RecipeIngredient
 from app.services.recipe.models.requests import RecipeCreate, RecipeIngredientInput, RecipeUpdate
-from app.services.recipe.models.responses import IngredientResponse, RecipeIngredientResponse, RecipeResponse
+from app.services.recipe.models.responses import IngredientResponse, NutrientInfo, RecipeIngredientResponse, RecipeResponse
 from app.services.usda.models.requests import FoodsByFdcID
 from app.services.usda.usda_service import usda_service
 from app.services.usda.utils import calculate_proportional_nutrients, extract_all_nutrients, sum_nutrients
@@ -117,11 +117,11 @@ class RecipeService:
                 raise RecipeNotFoundError(f"Recipe with ID {recipe_id} not found")
 
             if recipe_data.name is not None:
-                recipe.name = recipe_data.name
+                recipe.name = recipe_data.name  # type: ignore[assignment]
             if recipe_data.cuisine is not None:
-                recipe.cuisine = recipe_data.cuisine
+                recipe.cuisine = recipe_data.cuisine  # type: ignore[assignment]
             if recipe_data.description is not None:
-                recipe.description = recipe_data.description
+                recipe.description = recipe_data.description  # type: ignore[assignment]
 
             await session.commit()
             await session.refresh(recipe, ["recipe_ingredients"])
@@ -234,7 +234,9 @@ class RecipeService:
             logger.error(f"Failed to add ingredient to recipe {recipe_id}: {e}")
             raise DatabaseError(f"Failed to add ingredient: {str(e)}") from e
 
-    async def update_ingredient_in_recipe(self, session: AsyncSession, recipe_id: int, ingredient_id: int, ingredient_input: RecipeIngredientInput) -> RecipeResponse:
+    async def update_ingredient_in_recipe(
+        self, session: AsyncSession, recipe_id: int, ingredient_id: int, ingredient_input: RecipeIngredientInput
+    ) -> RecipeResponse:
         """
         Update an ingredient's quantity in a recipe.
 
@@ -340,18 +342,19 @@ class RecipeService:
         # Fetch ingredient data from cache/USDA
         fdc_ids = [ri.usda_fdc_id for ri in recipe.recipe_ingredients]
         if not fdc_ids:
-            return RecipeResponse(
-                id=recipe.id,
-                name=recipe.name,
-                cuisine=recipe.cuisine,
-                description=recipe.description,
-                ingredients=[],
-                nutrients=[],
-                created_at=recipe.created_at,
-                updated_at=recipe.updated_at,
-            )
+            response_dict = {
+                "id": recipe.id,
+                "name": recipe.name,
+                "cuisine": recipe.cuisine,
+                "description": recipe.description,
+                "ingredients": [],
+                "nutrients": [],
+                "created_at": recipe.created_at,
+                "updated_at": recipe.updated_at,
+            }
+            return RecipeResponse.model_validate(response_dict)
 
-        criteria = FoodsByFdcID(fdc_ids=fdc_ids)
+        criteria = FoodsByFdcID(fdcIds=fdc_ids)
         usda_results = await usda_service.search_by_fdcids(criteria)
 
         # Map results by FDC ID
@@ -382,35 +385,42 @@ class RecipeService:
             # Add to total
             all_nutrients.append(scaled_nutrients)
 
+            # Convert dicts to NutrientInfo objects
+            per_100g_nutrient_info = [NutrientInfo(**n) for n in per_100g_nutrients]
+            scaled_nutrient_info = [NutrientInfo(**n) for n in scaled_nutrients]
+
             # Build response
-            recipe_ingredients.append(
-                RecipeIngredientResponse(
-                    id=recipe_ingredient.id,
-                    ingredient=IngredientResponse(
-                        usda_fdc_id=usda_fdc_id,
-                        name=usda_data.get("description", "Unknown"),
-                        data_type=usda_data.get("dataType"),
-                        brand_owner=usda_data.get("brandOwner"),
-                        nutrients=per_100g_nutrients,
-                    ),
-                    quantity_grams=quantity_grams,
-                    nutrients=scaled_nutrients,
-                )
+            ingredient_resp = IngredientResponse(
+                usda_fdc_id=usda_fdc_id,
+                name=usda_data.get("description", "Unknown"),
+                data_type=usda_data.get("dataType"),
+                brand_owner=usda_data.get("brandOwner"),
+                nutrients=per_100g_nutrient_info,
             )
+            recipe_ingredient_resp = RecipeIngredientResponse(
+                id=recipe_ingredient.id,
+                ingredient=ingredient_resp,
+                quantity_grams=quantity_grams,
+                nutrients=scaled_nutrient_info,
+            )
+            recipe_ingredients.append(recipe_ingredient_resp)
 
         # Sum nutrients across all ingredients
         total_nutrients = sum_nutrients(all_nutrients)
+        nutrient_info_list = [NutrientInfo(**nutrient) for nutrient in total_nutrients]
 
-        return RecipeResponse(
-            id=recipe.id,
-            name=recipe.name,
-            cuisine=recipe.cuisine,
-            description=recipe.description,
-            ingredients=recipe_ingredients,
-            nutrients=total_nutrients,
-            created_at=recipe.created_at,
-            updated_at=recipe.updated_at,
-        )
+        # Build response dict from ORM object
+        response_dict = {
+            "id": recipe.id,
+            "name": recipe.name,
+            "cuisine": recipe.cuisine,
+            "description": recipe.description,
+            "ingredients": recipe_ingredients,
+            "nutrients": nutrient_info_list,
+            "created_at": recipe.created_at,
+            "updated_at": recipe.updated_at,
+        }
+        return RecipeResponse.model_validate(response_dict)
 
 
 recipe_service = RecipeService()

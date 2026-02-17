@@ -28,13 +28,17 @@ router = APIRouter(
 async def create_recipe(
     request: RouteRecipeCreate = Body(
         ...,
-        example={
-            "name": "Cabbage",
-            "cuisine": "MEXICAN",
-            "description": "A bunch of cabbage",
-            "ingredients": [{"usda_fdc_id": 2346407, "quantity_grams": 200}],
+        examples={
+            "example1": {
+                "value": {
+                    "name": "Cabbage",
+                    "cuisine": "MEXICAN",
+                    "description": "A bunch of cabbage",
+                    "ingredients": [{"usda_fdc_id": 2346407, "quantity_grams": 200}],
+                }
+            }
         },
-    ),
+    ),  # type: ignore[arg-type]
     session: AsyncSession = Depends(get_db),
 ) -> RouteRecipeResponse:
     """Create a new recipe with ingredients."""

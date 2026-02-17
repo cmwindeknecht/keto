@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.models import Cuisine
 
@@ -46,27 +46,30 @@ class FoodsByFdcID(BaseModel):
 
     fdc_ids: list[int] = Field(
         ...,
-        min_items=1,
-        max_items=20,
+        min_length=1,
+        max_length=20,
         alias="fdcIds",
         description="List of USDA FoodData Central IDs to retrieve (1-20 IDs per request).",
     )
     format: str = Field("full", pattern="^(abridged|full)$", description="Response format: 'abridged' or 'full'.")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class FoodsByCriteria(BaseModel):
     """Request body for searching foods by criteria."""
 
     query: str = Field(..., min_length=1, description="Search keywords (e.g., 'apple', 'chicken').")
-    data_type: Optional[list[str]] = Field(None, alias="dataType", description="Filter by food database types: Foundation, SR Legacy, Survey (FNDDS), Branded", example=["Foundation"])
+    data_type: Optional[list[str]] = Field(
+        None,
+        alias="dataType",
+        description="Filter by food database types: Foundation, SR Legacy, Survey (FNDDS), Branded",
+        json_schema_extra={"example": ["Foundation"]},
+    )
     brand_owner: Optional[str] = Field(None, alias="brandOwner", description="Filter by brand owner name.")
     page_size: Optional[int] = Field(200, ge=1, le=200, alias="pageSize", description="Number of results per page (1-200).")
     page_number: Optional[int] = Field(None, alias="pageNumber", description="Page number (1-based).")
     sort_by: Optional[str] = Field(None, alias="sortBy", description="Field to sort by.")
     sort_order: Optional[str] = Field(None, pattern="^(asc|desc)$", alias="sortOrder", description="Sort order: 'asc' or 'desc'.")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.models import Cuisine
 
@@ -46,8 +46,7 @@ class RecipeResponse(BaseModel):
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SearchIngredientsResponse(BaseModel):
@@ -72,5 +71,4 @@ class SearchResultFood(BaseModel):
     ndb_number: Optional[int] = Field(None, alias="ndbNumber", description="NDB number")
     score: Optional[float] = Field(None, description="Search relevance score")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)

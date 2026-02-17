@@ -75,7 +75,7 @@ def sum_nutrients(nutrient_lists: list[list[dict]]) -> list[dict]:
     Returns:
         Combined nutrient totals
     """
-    totals = {}
+    totals: dict[str, dict[str, str | float]] = {}
     for nutrients in nutrient_lists:
         for nutrient in nutrients:
             name = nutrient["name"]

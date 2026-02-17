@@ -54,7 +54,7 @@ class USDAService:
         self.usda_api_key = settings.USDA_API_KEY
 
     @handle_usda_errors
-    async def search_by_fdcids(self, criteria: FoodsByFdcID, url: str = None) -> list[dict]:
+    async def search_by_fdcids(self, criteria: FoodsByFdcID, url: str | None = None) -> list[dict]:
         """
         Used to get recipe details with stored FdcIDs for ingredients in the recipe
 
@@ -101,7 +101,7 @@ class USDAService:
             return response.json()
 
     @handle_usda_errors
-    async def search_by_criteria(self, criteria: FoodsByCriteria, url: str = None, include_brands: bool = False) -> list[dict]:
+    async def search_by_criteria(self, criteria: FoodsByCriteria, url: str | None = None, include_brands: bool = False) -> list[dict]:
         """
         Search for ingredients with Elasticsearch-first strategy.
 
