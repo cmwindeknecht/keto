@@ -31,3 +31,10 @@ class DatabaseError(HTTPException):
 
     def __init__(self, detail: str = "Database operation failed"):
         super().__init__(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail)
+
+
+class USDAAPIRateLimitError(HTTPException):
+    """Raised when USDA API request limit is exceeded."""
+
+    def __init__(self, detail: str = "USDA API request limit exceeded. Please try again later."):
+        super().__init__(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail)

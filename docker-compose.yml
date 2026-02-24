@@ -264,14 +264,13 @@ services:
     build:
       context: .
       dockerfile: docker/frontend-react.Dockerfile
+      target: development
     container_name: keto-frontend-react
     ports:
       - "3000:3000"
     env_file:
       - .env
       - .env.local
-    environment:
-      - NEXT_PUBLIC_API_URL=http://backend-go:8080
     depends_on:
       backend-go:
         condition: service_healthy

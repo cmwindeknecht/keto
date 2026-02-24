@@ -3,6 +3,9 @@ FROM node:20-alpine AS development
 
 WORKDIR /app
 
+# Copy env files for development
+COPY .env .env.local* ./
+
 # Copy package files
 COPY frontend-react/package.json frontend-react/package-lock.json* ./
 

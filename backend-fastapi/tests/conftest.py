@@ -1,7 +1,7 @@
 """Shared test fixtures and configuration."""
 
 import asyncio
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,6 +11,18 @@ from sqlalchemy.pool import StaticPool
 from app.db.database import get_db
 from app.db.models import Base
 from app.main import app
+from app.middleware.inbound_rate_limiter import InboundRateLimiterMiddleware
+
+
+@pytest.fixture(autouse=True)
+def bypass_inbound_rate_limiter():
+    """Bypass rate limiter for all tests."""
+
+    async def pass_through(self, request, call_next):
+        return await call_next(request)
+
+    with patch.object(InboundRateLimiterMiddleware, "dispatch", pass_through):
+        yield
 
 
 @pytest.fixture(scope="session")

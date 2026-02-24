@@ -53,8 +53,9 @@ build/
 dist/
 
 # Environment
-.env
-.env.local
+# Note: .env and .env.local are needed for frontend build
+# .env
+# .env.local
 .env.*.local
 
 # Terraform

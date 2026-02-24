@@ -40,7 +40,10 @@ export default function RecipesPage() {
   };
 
   if (isLoading) return <div className="text-center py-8">Loading recipes...</div>;
-  if (error) return <div className="text-center py-8 text-red-600">Error loading recipes</div>;
+  if (error) {
+    console.error("Recipe query error:", error);
+    // return <div className="text-center py-8 text-red-600">Error loading recipes: {JSON.stringify(error)}</div>;
+  }
 
   return (
     <div>

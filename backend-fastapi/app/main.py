@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.db.database import db_manager
+from app.middleware.inbound_rate_limiter import InboundRateLimiterMiddleware
 from app.middleware.logging import LoggingMiddleware
 from app.routes.internal import recipes as internal_recipes_routes
 from app.routes.internal import usda as internal_usda_routes
@@ -47,10 +48,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Add logging middleware first so it logs everything
 app.add_middleware(LoggingMiddleware)
-
-# Add CORS middleware
+app.add_middleware(InboundRateLimiterMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # TODO Configure appropriately for production
