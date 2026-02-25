@@ -14,7 +14,10 @@ _real_dispatch = InboundRateLimiterMiddleware.dispatch
 
 
 def _make_middleware(requests_limit=5, requests_interval=1.0):
-    with patch("asyncio.ensure_future"):
+    def _close_coro(coro):
+        coro.close()
+
+    with patch("asyncio.ensure_future", side_effect=_close_coro):
         return InboundRateLimiterMiddleware(MagicMock(), requests_limit=requests_limit, requests_interval=requests_interval)
 
 

@@ -27,7 +27,7 @@ export default function LookupPage() {
     if (!searchQuery.trim()) return;
     try {
       const result = await searchUSDA({ query: searchQuery }).unwrap();
-      setSearchResults(result.foods);
+      setSearchResults(result);
     } catch (err) {
       console.error("Error searching USDA:", err);
     }
@@ -86,13 +86,13 @@ export default function LookupPage() {
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {searchResults.map((food) => (
                 <button
-                  key={food.fdc_id}
+                  key={food.fdcId}
                   onClick={() => handleSelectFood(food)}
                   className="w-full text-left p-3 border rounded hover:bg-blue-50"
                 >
                   <div className="font-medium">{food.description}</div>
                   <div className="text-sm text-gray-600">
-                    Type: {food.data_type} {food.brand_name && `| Brand: ${food.brand_name}`}
+                    Type: {food.dataType} {food.brandOwner && `| Brand: ${food.brandOwner}`}
                   </div>
                 </button>
               ))}
@@ -107,8 +107,8 @@ export default function LookupPage() {
             <div>
               <h2 className="text-2xl font-semibold">{selectedFood.description}</h2>
               <p className="text-gray-600">
-                Type: {selectedFood.data_type}
-                {selectedFood.brand_name && ` | Brand: ${selectedFood.brand_name}`}
+                Type: {selectedFood.dataType}
+                {selectedFood.brandOwner && ` | Brand: ${selectedFood.brandOwner}`}
               </p>
             </div>
             <button
@@ -144,7 +144,13 @@ export default function LookupPage() {
             </p>
           </div>
 
-          <NutrientTable nutrients={selectedFood.foodNutrients} quantityGrams={quantityInGrams} />
+          <NutrientTable
+            nutrients={selectedFood.foodNutrients.map((n: any) => ({
+              nutrient: { id: n.nutrientId, number: String(n.nutrientId), name: n.nutrientName, unitName: n.unitName },
+              amount: n.value,
+            }))}
+            quantityGrams={quantityInGrams}
+          />
         </div>
       )}
     </div>

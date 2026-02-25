@@ -12,12 +12,25 @@ export interface Nutrient {
   derivationCode?: string;
 }
 
-export interface Ingredient {
-  id: string;
-  fdc_id: string;
+export interface NutrientInfo {
   name: string;
+  amount: number;
+  unit: string;
+}
+
+export interface IngredientDetail {
+  usda_fdc_id: number;
+  name: string;
+  data_type?: string;
+  brand_owner?: string;
+  nutrients: NutrientInfo[];
+}
+
+export interface RecipeIngredient {
+  id: string;
+  ingredient: IngredientDetail;
   quantity_grams: number;
-  foodNutrients: Nutrient[];
+  nutrients: NutrientInfo[];
 }
 
 export interface Recipe {
@@ -25,15 +38,22 @@ export interface Recipe {
   name: string;
   cuisine?: string;
   description?: string;
-  ingredients: Ingredient[];
+  ingredients: RecipeIngredient[];
+  nutrients: NutrientInfo[];
   created_at?: string;
   updated_at?: string;
 }
 
+export interface RecipeIngredientInput {
+  usda_fdc_id: number;
+  quantity_grams: number;
+}
+
 export interface CreateRecipeRequest {
   name: string;
-  cuisine?: string;
+  cuisine: string;
   description?: string;
+  ingredients?: RecipeIngredientInput[];
 }
 
 export interface UpdateRecipeRequest {
@@ -43,10 +63,8 @@ export interface UpdateRecipeRequest {
 }
 
 export interface AddIngredientRequest {
-  fdc_id: string;
-  name: string;
+  usda_fdc_id: number;
   quantity_grams: number;
-  foodNutrients: Nutrient[];
 }
 
 export const recipesApi = baseApi.injectEndpoints({

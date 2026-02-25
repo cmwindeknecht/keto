@@ -6,6 +6,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"keto-api/internal/cache"
@@ -31,14 +32,21 @@ func (w *cachedResponseWriter) Write(b []byte) (int, error) {
 func CacheMiddleware(cfg *config.Config, rc *cache.RedisClient) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Only cache GET requests
+			// Only cache GET requests; invalidate on mutations
 			if !cfg.CacheEnabled || r.Method != "GET" {
+				if cfg.CacheEnabled && r.Method != "GET" {
+					invalidateRelatedCaches(rc, r)
+					next.ServeHTTP(w, r)
+					return
+				}
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			// Skip caching for certain paths
-			if shouldSkipCaching(r.URL.Path) {
+			// Only cache explicitly allowlisted paths
+			fmt.Printf("[CACHE] checking if should cache path %s\n", r.URL.Path)
+			if !shouldCachePath(r.URL.Path) {
+				fmt.Printf("[CACHE] skipped caching path %s\n", r.URL.Path)
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -76,6 +84,7 @@ func CacheMiddleware(cfg *config.Config, rc *cache.RedisClient) func(next http.H
 				ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 				rc.Set(ctx, cacheKey, wrapped.body.Bytes(), cfg.CacheTTL)
 				cancel()
+				fmt.Printf("[CACHE] cached path %s\n", r.URL.Path)
 			}
 		})
 	}
@@ -88,55 +97,49 @@ func generateCacheKey(r *http.Request) string {
 	return fmt.Sprintf("cache:%x", hash)
 }
 
-func shouldSkipCaching(path string) bool {
-	skipPaths := map[string]bool{
-		"/health": true,
-		"/":       true,
-	}
-	return skipPaths[path]
-}
+func invalidateRelatedCaches(rc *cache.RedisClient, r *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 
-// LoggingMiddleware logs HTTP requests
-func LoggingMiddleware() func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			start := time.Now()
+	path := r.URL.Path
 
-			// Wrap response writer to capture status
-			wrapped := &cachedResponseWriter{
-				ResponseWriter: w,
-				statusCode:     http.StatusOK,
-				body:           &bytes.Buffer{},
-			}
+	// Invalidate the exact path as GET
+	rc.Delete(ctx, generateCacheKeyForPath("GET", path, ""))
 
-			next.ServeHTTP(wrapped, r)
-
-			duration := time.Since(start)
-			fmt.Printf("[%s] %s %s %d %v\n", time.Now().Format("2006-01-02 15:04:05"), r.Method, r.URL.Path, wrapped.statusCode, duration)
-		})
+	// Invalidate the parent path (e.g., /recipes/123/ingredients → /recipes/123 and /recipes)
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	for i := len(parts) - 1; i > 0; i-- {
+		parentPath := "/" + strings.Join(parts[:i], "/")
+		rc.Delete(ctx, generateCacheKeyForPath("GET", parentPath, ""))
 	}
 }
 
-// ResponseWriterCapture wraps http.ResponseWriter to capture status and body
-type ResponseWriterCapture struct {
-	http.ResponseWriter
-	statusCode int
-	body       *bytes.Buffer
-	headerSent bool
+func generateCacheKeyForPath(method, path, query string) string {
+	keyStr := fmt.Sprintf("cache:%s:%s:%s", method, path, query)
+	hash := md5.Sum([]byte(keyStr))
+	return fmt.Sprintf("cache:%x", hash)
 }
 
-func (w *ResponseWriterCapture) WriteHeader(statusCode int) {
-	if !w.headerSent {
-		w.statusCode = statusCode
-		w.headerSent = true
-		w.ResponseWriter.WriteHeader(statusCode)
+// shouldCachePath returns true only for paths that should be cached.
+// Add entries to cachePaths below to allowlist additional routes.
+//
+// Currently uses exact matching only.
+// To also match sub-paths (e.g. "/usda/123456" when "/usda" is listed),
+// uncomment the prefix-match block below.
+func shouldCachePath(path string) bool {
+	cachePaths := map[string]bool{
+		"/usda":               true,
+		"/search-ingredients": true,
 	}
-}
-
-func (w *ResponseWriterCapture) Write(b []byte) (int, error) {
-	if !w.headerSent {
-		w.WriteHeader(http.StatusOK)
+	// Exact match
+	if cachePaths[path] {
+		return true
 	}
-	w.body.Write(b)
-	return w.ResponseWriter.Write(b)
+	// Prefix match — uncomment to also cache sub-paths (e.g. /usda/123456)
+	// for p := range cachePaths {
+	// 	if strings.HasPrefix(path, p+"/") {
+	// 		return true
+	// 	}
+	// }
+	return false
 }

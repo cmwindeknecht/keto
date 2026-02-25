@@ -2,7 +2,6 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.db.database import db_manager
@@ -50,13 +49,6 @@ app = FastAPI(
 
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(InboundRateLimiterMiddleware)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # TODO Configure appropriately for production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Include routers
 app.include_router(internal_recipes_routes.router)

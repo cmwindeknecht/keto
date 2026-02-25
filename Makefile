@@ -1,21 +1,18 @@
 .PHONY: help up down restart build rebuild logs ps clean clean-all shell-fastapi shell-go shell-react db-shell redis-shell test lint format type-check security sonarqube pre-commit-install pre-commit-run
 
-up: ## Start all services
+up: ## Start all services (rebuilds Go gateway)
 	docker-compose down
-	docker-compose up -d
-
-up-clean: ## Start all services with clean volumes
-	docker-compose down -v
+	docker-compose build backend-go
 	docker-compose up -d
 
 dev: up logs ## Start services and show logs
 
-restart-build: ## Build all services
+rebuild: ## Build all services
 	docker-compose down -v
 	docker-compose build
 	docker-compose up -d
 
-restart-nocache: ## Restart all services
+rebuild-nocache: ## Restart all services
 	docker-compose down -v
 	docker-compose build --no-cache
 	docker-compose up -d
@@ -59,8 +56,8 @@ db-reset: ## Reset database
 
 test:
 	docker-compose exec backend-fastapi pytest
-	docker-compose exec backend-go go test ./...
-	docker-compose exec frontend-react npm test
+	cd backend-go && go test ./...
+	# docker-compose exec frontend-react npm test  # TODO: add frontend test framework
 
 lint: ## Run all linting checks
 	cd backend-fastapi && python -m black app/ tests/
@@ -84,3 +81,7 @@ pre-commit-install: ## Install pre-commit hooks
 
 pre-commit-run: ## Run pre-commit checks on all files
 	python -c "import pre_commit.main; pre_commit.main.main(['run', '--all-files'])"
+
+requirements:
+	python -m pip install -r backend-fastapi/requirements.txt
+	python -m pip install -r backend-fastapi/requirements-dev.txt

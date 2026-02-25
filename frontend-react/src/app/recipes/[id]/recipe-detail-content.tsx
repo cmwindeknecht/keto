@@ -12,7 +12,25 @@ import {
 } from "@/store/api/recipesApi";
 import { useSearchMutation } from "@/store/api/usdaApi";
 import { NutrientTable } from "@/components/NutrientTable";
-import type { Ingredient, Nutrient } from "@/store/api/recipesApi";
+import type { RecipeIngredient, NutrientInfo, Nutrient } from "@/store/api/recipesApi";
+
+const NUTRIENT_NAME_TO_ID: Record<string, number> = {
+  "Energy": 1008,
+  "Total lipid (fat)": 1004,
+  "Carbohydrate, by difference": 1005,
+  "Fiber, total dietary": 1079,
+  "Sodium, Na": 1093,
+  "Potassium, K": 1092,
+  "Magnesium, Mg": 1090,
+};
+
+function toNutrient(info: NutrientInfo): Nutrient {
+  const id = NUTRIENT_NAME_TO_ID[info.name] ?? 0;
+  return {
+    nutrient: { id, number: String(id), name: info.name, unitName: info.unit },
+    amount: info.amount,
+  };
+}
 
 interface RecipeDetailContentProps {
   id: string;
@@ -70,7 +88,7 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
     if (!searchQuery.trim()) return;
     try {
       const result = await searchUSDA({ query: searchQuery }).unwrap();
-      setSearchResults(result.foods);
+      setSearchResults(result);
     } catch (err) {
       console.error("Error searching USDA:", err);
     }
@@ -82,10 +100,8 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
       await addIngredient({
         id,
         body: {
-          fdc_id: selectedUSDAFood.fdc_id,
-          name: selectedUSDAFood.description,
+          usda_fdc_id: selectedUSDAFood.fdcId,
           quantity_grams: ingredientQuantity,
-          foodNutrients: selectedUSDAFood.foodNutrients,
         },
       }).unwrap();
       setSelectedUSDAFood(null);
@@ -114,28 +130,7 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
   if (isLoading) return <div className="text-center py-8">Loading recipe...</div>;
   if (error || !recipe) return <div className="text-center py-8 text-red-600">Recipe not found</div>;
 
-  // Calculate aggregate nutrients
-  const aggregateNutrients: Nutrient[] = [];
-  const nutrientMap = new Map<number, Nutrient>();
-
-  recipe.ingredients?.forEach((ingredient: Ingredient) => {
-    ingredient.foodNutrients?.forEach((nutrient: Nutrient) => {
-      const nutrientId = parseInt(nutrient.nutrient.number);
-      const scaledAmount = (nutrient.amount * ingredient.quantity_grams) / 100;
-
-      if (nutrientMap.has(nutrientId)) {
-        const existing = nutrientMap.get(nutrientId)!;
-        existing.amount += scaledAmount;
-      } else {
-        nutrientMap.set(nutrientId, {
-          ...nutrient,
-          amount: scaledAmount,
-        });
-      }
-    });
-  });
-
-  aggregateNutrients.push(...nutrientMap.values());
+  const aggregateNutrients: Nutrient[] = (recipe.nutrients ?? []).map(toNutrient);
 
   return (
     <div>
@@ -265,13 +260,13 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {searchResults.map((food) => (
                     <button
-                      key={food.fdc_id}
+                      key={food.fdcId}
                       onClick={() => setSelectedUSDAFood(food)}
                       className="w-full text-left p-2 border rounded hover:bg-blue-50"
                     >
                       <div className="font-medium">{food.description}</div>
                       <div className="text-sm text-gray-600">
-                        Type: {food.data_type} {food.brand_name && `| Brand: ${food.brand_name}`}
+                        Type: {food.dataType} {food.brandOwner && `| Brand: ${food.brandOwner}`}
                       </div>
                     </button>
                   ))}
@@ -315,11 +310,11 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
           <p className="text-gray-600">No ingredients added yet</p>
         ) : (
           <div className="space-y-4">
-            {recipe.ingredients.map((ingredient: Ingredient) => (
+            {recipe.ingredients.map((ingredient: RecipeIngredient) => (
               <div key={ingredient.id} className="border rounded-lg p-4">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h3 className="text-lg font-semibold">{ingredient.name}</h3>
+                    <h3 className="text-lg font-semibold">{ingredient.ingredient.name}</h3>
                     <p className="text-gray-600">{ingredient.quantity_grams}g</p>
                   </div>
                   <button
@@ -330,7 +325,7 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
                     Remove
                   </button>
                 </div>
-                <NutrientTable nutrients={ingredient.foodNutrients} quantityGrams={ingredient.quantity_grams} />
+                <NutrientTable nutrients={ingredient.nutrients.map(toNutrient)} quantityGrams={100} />
               </div>
             ))}
           </div>
