@@ -220,6 +220,13 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
         )}
       </div>
 
+      {recipe.ingredients && recipe.ingredients.length > 0 && (
+        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+          <h2 className="text-2xl font-semibold mb-4">Recipe Totals</h2>
+          <NutrientTable nutrients={aggregateNutrients} quantityGrams={100} />
+        </div>
+      )}
+
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-semibold">Ingredients</h2>
@@ -332,12 +339,6 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
         )}
       </div>
 
-      {recipe.ingredients && recipe.ingredients.length > 0 && (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-2xl font-semibold mb-4">Recipe Totals</h2>
-          <NutrientTable nutrients={aggregateNutrients} quantityGrams={100} />
-        </div>
-      )}
     </div>
   );
 }

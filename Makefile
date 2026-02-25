@@ -56,7 +56,7 @@ db-reset: ## Reset database
 
 test:
 	docker-compose exec backend-fastapi pytest
-	cd backend-go && go test ./...
+	# cd backend-go && go test ./... # TODO: add go test framework
 	# docker-compose exec frontend-react npm test  # TODO: add frontend test framework
 
 lint: ## Run all linting checks

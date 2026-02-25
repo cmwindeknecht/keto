@@ -124,6 +124,89 @@ async def test_clear_all_ingredients_empty(cache_service):
 
 
 @pytest.mark.asyncio
+async def test_set_search_results_success(cache_service):
+    """Test caching search results by query string."""
+    mock_redis = AsyncMock()
+    cache_service._redis_client = mock_redis
+
+    results = [{"fdcId": 1, "description": "Cabbage, green, raw"}]
+    await cache_service.set_search_results("cabbage", results)
+
+    mock_redis.setex.assert_called_once()
+    call_args = mock_redis.setex.call_args
+    assert call_args[0][0] == "search:cabbage"
+    assert call_args[0][1] == cache_service.SEARCH_TTL
+
+
+@pytest.mark.asyncio
+async def test_set_search_results_lowercases_query(cache_service):
+    """Test that query is normalized to lowercase for the cache key."""
+    mock_redis = AsyncMock()
+    cache_service._redis_client = mock_redis
+
+    await cache_service.set_search_results("Red Cabbage", [])
+
+    call_args = mock_redis.setex.call_args
+    assert call_args[0][0] == "search:red cabbage"
+
+
+@pytest.mark.asyncio
+async def test_set_search_results_failure(cache_service):
+    """Test cache service handles exceptions without raising."""
+    mock_redis = AsyncMock()
+    mock_redis.setex.side_effect = Exception("Redis error")
+    cache_service._redis_client = mock_redis
+
+    # Should not raise
+    await cache_service.set_search_results("cabbage", [{"fdcId": 1}])
+
+
+@pytest.mark.asyncio
+async def test_get_search_results_hit(cache_service):
+    """Test retrieving cached search results."""
+    import json
+
+    mock_redis = AsyncMock()
+    cache_service._redis_client = mock_redis
+
+    results = [{"fdcId": 1, "description": "Cabbage, green, raw"}]
+    mock_redis.get.return_value = json.dumps(results)
+
+    result = await cache_service.get_search_results("cabbage")
+
+    assert result is not None
+    assert len(result) == 1
+    assert result[0]["fdcId"] == 1
+    mock_redis.get.assert_called_once_with("search:cabbage")
+
+
+@pytest.mark.asyncio
+async def test_get_search_results_miss(cache_service):
+    """Test cache miss returns None."""
+    mock_redis = AsyncMock()
+    mock_redis.get.return_value = None
+    cache_service._redis_client = mock_redis
+
+    result = await cache_service.get_search_results("red cabbage")
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_search_results_lowercases_query(cache_service):
+    """Test that query is normalized when building the lookup key."""
+    import json
+
+    mock_redis = AsyncMock()
+    cache_service._redis_client = mock_redis
+    mock_redis.get.return_value = json.dumps([])
+
+    await cache_service.get_search_results("Red Cabbage")
+
+    mock_redis.get.assert_called_once_with("search:red cabbage")
+
+
+@pytest.mark.asyncio
 async def test_get_cache_info(cache_service):
     """Test getting cache statistics."""
     mock_redis = AsyncMock()
