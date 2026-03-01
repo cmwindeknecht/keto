@@ -15,7 +15,7 @@ class OutboundRateLimiter:
     def __init__(self, max_requests: int = 1000, requests_interval: float = 3600.0):  # USDA API allows 1000 requests per hour
         self.max_requests = max_requests
         self.requests_interval = requests_interval
-        self.calls = deque()
+        self.calls: deque[float] = deque()
         self.lock = threading.Lock()
         self.asyncio_lock = asyncio.Lock()
 

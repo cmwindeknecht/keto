@@ -18,7 +18,9 @@ const NUTRIENT_MAP: Record<number, { label: string; unit: string }> = {
 const PRIMARY_NUTRIENTS = [1008, 1004, 1005, 1079, 1093, 1092, 1090];
 
 function getNutrientValue(nutrients: Nutrient[], nutrientId: number): number {
-  const nutrient = nutrients.find((n) => parseInt(n.nutrient.number) === nutrientId);
+  const nutrient = nutrients.find(
+    (n) => parseInt(n.nutrient.number) === nutrientId,
+  );
   return nutrient ? nutrient.amount : 0;
 }
 
@@ -26,7 +28,10 @@ function scaleNutrient(per100g: number, quantityGrams: number): number {
   return (per100g * quantityGrams) / 100;
 }
 
-export function NutrientTable({ nutrients, quantityGrams }: NutrientTableProps) {
+export function NutrientTable({
+  nutrients,
+  quantityGrams,
+}: NutrientTableProps) {
   const getDisplayValue = (nutrientId: number) => {
     const per100g = getNutrientValue(nutrients, nutrientId);
     return scaleNutrient(per100g, quantityGrams);
@@ -48,7 +53,10 @@ export function NutrientTable({ nutrients, quantityGrams }: NutrientTableProps) 
         <thead>
           <tr>
             {columns.map((col) => (
-              <th key={col.id} className="px-3 py-1 text-center text-gray-500 font-medium whitespace-nowrap">
+              <th
+                key={col.id}
+                className="px-3 py-1 text-center text-gray-500 font-medium whitespace-nowrap"
+              >
                 {col.label}
               </th>
             ))}
@@ -57,7 +65,10 @@ export function NutrientTable({ nutrients, quantityGrams }: NutrientTableProps) 
         <tbody>
           <tr>
             {columns.map((col) => (
-              <td key={col.id} className="px-3 py-1 text-center font-semibold whitespace-nowrap">
+              <td
+                key={col.id}
+                className="px-3 py-1 text-center font-semibold whitespace-nowrap"
+              >
                 {col.value}
               </td>
             ))}

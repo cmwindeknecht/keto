@@ -36,5 +36,6 @@ const lookupSlice = createSlice({
   },
 });
 
-export const { selectFood, setQuantity, setUnit, clearSelection } = lookupSlice.actions;
+export const { selectFood, setQuantity, setUnit, clearSelection } =
+  lookupSlice.actions;
 export default lookupSlice.reducer;

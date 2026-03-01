@@ -1,19 +1,29 @@
-.PHONY: help up down restart build rebuild logs ps clean clean-all shell-fastapi shell-go shell-react db-shell redis-shell test lint format type-check security sonarqube pre-commit-install pre-commit-run
+.PHONY: env up restart-frontend prettier dev rebuild rebuild-nocache logs logs-api logs-go logs-react logs-sonarqube shell-fastapi shell-go shell-react db-shell redis-shell db-migrate db-reset test lint sonarqube-status sonarqube-scan pre-commit-install pre-commit-run requirements
 
 up: ## Start all services (rebuilds Go gateway)
 	docker-compose down
 	docker-compose build backend-go
 	docker-compose up -d
 
+restart-frontend:
+	docker-compose stop frontend-react
+	docker-compose rm -f frontend-react
+	docker-compose up -d frontend-react
+
+prettier:
+	cd frontend-react && npx prettier --write src/
+
 dev: up logs ## Start services and show logs
 
 rebuild: ## Build all services
 	docker-compose down -v
+	docker-compose build backend-go
 	docker-compose build
 	docker-compose up -d
 
 rebuild-nocache: ## Restart all services
 	docker-compose down -v
+	docker-compose build backend-go
 	docker-compose build --no-cache
 	docker-compose up -d
 
@@ -85,3 +95,6 @@ pre-commit-run: ## Run pre-commit checks on all files
 requirements:
 	python -m pip install -r backend-fastapi/requirements.txt
 	python -m pip install -r backend-fastapi/requirements-dev.txt
+
+env:
+	source .venv/Scripts/activate

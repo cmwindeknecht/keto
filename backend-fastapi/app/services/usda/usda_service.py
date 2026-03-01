@@ -127,12 +127,8 @@ class USDAService:
         Raises:
             USDAAPIError: If the API call fails
         """
-        data_types = ["Foundation", "SR Legacy"]
-        if include_brands:
-            data_types.append("Branded")
-
         # Step 1: Check search query cache
-        cached = await cache_service.get_search_results(criteria.query)
+        cached = await cache_service.get_search_results(criteria.query, criteria.data_type, criteria.brand_owner)
         if cached is not None:
             logger.info(f"[SEARCH] Query cache HIT for '{criteria.query}' — returning {len(cached)} cached results, skipping ES + USDA")
             return cached
@@ -140,7 +136,9 @@ class USDAService:
         logger.info(f"[SEARCH] Query cache MISS for '{criteria.query}' — proceeding to ES + USDA")
 
         # Step 2: Query Elasticsearch for supplemental results (best-effort, sparse index)
-        es_results = await elasticsearch_service.search_ingredients(criteria.query, data_types, criteria.page_size or 20)
+        es_results = await elasticsearch_service.search_ingredients(
+            criteria.query, criteria.data_type or [], criteria.page_size or 20, criteria.brand_owner
+        )
         logger.info(f"[SEARCH] ES returned {len(es_results)} candidate(s) for '{criteria.query}'")
 
         results, missing_fdc_ids = await self.intersect_results(es_results)
@@ -187,7 +185,7 @@ class USDAService:
                     existing_fdc_ids.add(food_dict["fdcId"])
 
         # Step 6: Cache the full result set by query string
-        await cache_service.set_search_results(criteria.query, results)
+        await cache_service.set_search_results(criteria.query, results, criteria.data_type, criteria.brand_owner)
         logger.info(f"[SEARCH] Cached {len(results)} result(s) under query '{criteria.query}'")
 
         return results

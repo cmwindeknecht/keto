@@ -88,13 +88,19 @@ export const recipesApi = baseApi.injectEndpoints({
       invalidatesTags: [{ type: "Recipe", id: "LIST" }],
     }),
 
-    updateRecipe: builder.mutation<Recipe, { id: string; body: UpdateRecipeRequest }>({
+    updateRecipe: builder.mutation<
+      Recipe,
+      { id: string; body: UpdateRecipeRequest }
+    >({
       query: ({ id, body }) => ({
         url: `/recipes/${id}`,
         method: "PUT",
         body,
       }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: "Recipe", id }, { type: "Recipe", id: "LIST" }],
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "Recipe", id },
+        { type: "Recipe", id: "LIST" },
+      ],
     }),
 
     deleteRecipe: builder.mutation<void, string>({
@@ -105,21 +111,33 @@ export const recipesApi = baseApi.injectEndpoints({
       invalidatesTags: [{ type: "Recipe", id: "LIST" }],
     }),
 
-    addIngredient: builder.mutation<Recipe, { id: string; body: AddIngredientRequest }>({
+    addIngredient: builder.mutation<
+      Recipe,
+      { id: string; body: AddIngredientRequest }
+    >({
       query: ({ id, body }) => ({
         url: `/recipes/${id}/ingredients`,
         method: "POST",
         body,
       }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: "Recipe", id }, { type: "Recipe", id: "LIST" }],
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "Recipe", id },
+        { type: "Recipe", id: "LIST" },
+      ],
     }),
 
-    removeIngredient: builder.mutation<Recipe, { recipeId: string; ingredientId: string }>({
+    removeIngredient: builder.mutation<
+      Recipe,
+      { recipeId: string; ingredientId: string }
+    >({
       query: ({ recipeId, ingredientId }) => ({
         url: `/recipes/${recipeId}/ingredients/${ingredientId}`,
         method: "DELETE",
       }),
-      invalidatesTags: (_result, _error, { recipeId }) => [{ type: "Recipe", id: recipeId }, { type: "Recipe", id: "LIST" }],
+      invalidatesTags: (_result, _error, { recipeId }) => [
+        { type: "Recipe", id: recipeId },
+        { type: "Recipe", id: "LIST" },
+      ],
     }),
   }),
 });

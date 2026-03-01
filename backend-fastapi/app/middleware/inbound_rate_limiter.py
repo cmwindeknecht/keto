@@ -4,9 +4,9 @@ import time
 from collections import deque
 from http import HTTPStatus
 
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,9 @@ class InboundRateLimiterMiddleware(BaseHTTPMiddleware):
             for ip in stale_clients:
                 del self.clients[ip]
 
-    async def dispatch(self, request: Request, call_next) -> JSONResponse:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        if request.client is None:
+            return await call_next(request)
         client_ip = request.client.host
 
         async with self.lock:

@@ -12,10 +12,14 @@ import {
 } from "@/store/api/recipesApi";
 import { useSearchMutation } from "@/store/api/usdaApi";
 import { NutrientTable } from "@/components/NutrientTable";
-import type { RecipeIngredient, NutrientInfo, Nutrient } from "@/store/api/recipesApi";
+import type {
+  RecipeIngredient,
+  NutrientInfo,
+  Nutrient,
+} from "@/store/api/recipesApi";
 
 const NUTRIENT_NAME_TO_ID: Record<string, number> = {
-  "Energy": 1008,
+  Energy: 1008,
   "Total lipid (fat)": 1004,
   "Carbohydrate, by difference": 1005,
   "Fiber, total dietary": 1079,
@@ -41,8 +45,10 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
   const { data: recipe, isLoading, error } = useGetRecipeQuery(id);
   const [updateRecipe, { isLoading: isUpdating }] = useUpdateRecipeMutation();
   const [deleteRecipe, { isLoading: isDeleting }] = useDeleteRecipeMutation();
-  const [addIngredient, { isLoading: isAddingIngredient }] = useAddIngredientMutation();
-  const [removeIngredient, { isLoading: isRemovingIngredient }] = useRemoveIngredientMutation();
+  const [addIngredient, { isLoading: isAddingIngredient }] =
+    useAddIngredientMutation();
+  const [removeIngredient, { isLoading: isRemovingIngredient }] =
+    useRemoveIngredientMutation();
   const [searchUSDA, { isLoading: isSearching }] = useSearchMutation();
 
   const [editMode, setEditMode] = useState(false);
@@ -127,14 +133,23 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
     }
   };
 
-  if (isLoading) return <div className="text-center py-8">Loading recipe...</div>;
-  if (error || !recipe) return <div className="text-center py-8 text-red-600">Recipe not found</div>;
+  if (isLoading)
+    return <div className="text-center py-8">Loading recipe...</div>;
+  if (error || !recipe)
+    return (
+      <div className="text-center py-8 text-red-600">Recipe not found</div>
+    );
 
-  const aggregateNutrients: Nutrient[] = (recipe.nutrients ?? []).map(toNutrient);
+  const aggregateNutrients: Nutrient[] = (recipe.nutrients ?? []).map(
+    toNutrient,
+  );
 
   return (
     <div>
-      <Link href="/recipes" className="text-blue-600 hover:underline mb-4 inline-block">
+      <Link
+        href="/recipes"
+        className="text-blue-600 hover:underline mb-4 inline-block"
+      >
         ← Back to Recipes
       </Link>
 
@@ -146,7 +161,9 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
               <input
                 type="text"
                 value={editData.name}
-                onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                onChange={(e) =>
+                  setEditData({ ...editData, name: e.target.value })
+                }
                 className="w-full px-3 py-2 border rounded-lg"
               />
             </div>
@@ -155,15 +172,21 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
               <input
                 type="text"
                 value={editData.cuisine}
-                onChange={(e) => setEditData({ ...editData, cuisine: e.target.value })}
+                onChange={(e) =>
+                  setEditData({ ...editData, cuisine: e.target.value })
+                }
                 className="w-full px-3 py-2 border rounded-lg"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Description</label>
+              <label className="block text-sm font-medium mb-1">
+                Description
+              </label>
               <textarea
                 value={editData.description}
-                onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                onChange={(e) =>
+                  setEditData({ ...editData, description: e.target.value })
+                }
                 className="w-full px-3 py-2 border rounded-lg"
               />
             </div>
@@ -188,7 +211,9 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
             <div className="flex justify-between items-start">
               <div>
                 <h1 className="text-4xl font-bold">{recipe.name}</h1>
-                {recipe.cuisine && <p className="text-gray-600 text-lg">{recipe.cuisine}</p>}
+                {recipe.cuisine && (
+                  <p className="text-gray-600 text-lg">{recipe.cuisine}</p>
+                )}
                 {recipe.description && (
                   <p className="text-gray-700 mt-2">{recipe.description}</p>
                 )}
@@ -241,7 +266,9 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
         {showAddIngredient && (
           <div className="bg-gray-50 p-4 rounded mb-4 space-y-3">
             <div>
-              <label className="block text-sm font-medium mb-1">Search USDA Database</label>
+              <label className="block text-sm font-medium mb-1">
+                Search USDA Database
+              </label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -263,7 +290,9 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
 
             {searchResults.length > 0 && !selectedUSDAFood && (
               <div>
-                <label className="block text-sm font-medium mb-2">Results</label>
+                <label className="block text-sm font-medium mb-2">
+                  Results
+                </label>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {searchResults.map((food) => (
                     <button
@@ -273,7 +302,8 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
                     >
                       <div className="font-medium">{food.description}</div>
                       <div className="text-sm text-gray-600">
-                        Type: {food.dataType} {food.brandOwner && `| Brand: ${food.brandOwner}`}
+                        Type: {food.dataType}{" "}
+                        {food.brandOwner && `| Brand: ${food.brandOwner}`}
                       </div>
                     </button>
                   ))}
@@ -284,7 +314,9 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
             {selectedUSDAFood && (
               <div>
                 <div className="p-2 bg-blue-50 rounded mb-3">
-                  <div className="font-medium">{selectedUSDAFood.description}</div>
+                  <div className="font-medium">
+                    {selectedUSDAFood.description}
+                  </div>
                   <button
                     onClick={() => setSelectedUSDAFood(null)}
                     className="text-sm text-blue-600 hover:underline"
@@ -293,11 +325,15 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
                   </button>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Quantity (grams)</label>
+                  <label className="block text-sm font-medium mb-1">
+                    Quantity (grams)
+                  </label>
                   <input
                     type="number"
                     value={ingredientQuantity}
-                    onChange={(e) => setIngredientQuantity(parseFloat(e.target.value))}
+                    onChange={(e) =>
+                      setIngredientQuantity(parseFloat(e.target.value))
+                    }
                     className="w-full px-3 py-2 border rounded-lg"
                   />
                 </div>
@@ -313,7 +349,7 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
           </div>
         )}
 
-        {(!recipe.ingredients || recipe.ingredients.length === 0) ? (
+        {!recipe.ingredients || recipe.ingredients.length === 0 ? (
           <p className="text-gray-600">No ingredients added yet</p>
         ) : (
           <div className="space-y-4">
@@ -321,8 +357,12 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
               <div key={ingredient.id} className="border rounded-lg p-4">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h3 className="text-lg font-semibold">{ingredient.ingredient.name}</h3>
-                    <p className="text-gray-600">{ingredient.quantity_grams}g</p>
+                    <h3 className="text-lg font-semibold">
+                      {ingredient.ingredient.name}
+                    </h3>
+                    <p className="text-gray-600">
+                      {ingredient.quantity_grams}g
+                    </p>
                   </div>
                   <button
                     onClick={() => handleRemoveIngredient(ingredient.id)}
@@ -332,13 +372,15 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
                     Remove
                   </button>
                 </div>
-                <NutrientTable nutrients={ingredient.nutrients.map(toNutrient)} quantityGrams={100} />
+                <NutrientTable
+                  nutrients={ingredient.nutrients.map(toNutrient)}
+                  quantityGrams={100}
+                />
               </div>
             ))}
           </div>
         )}
       </div>
-
     </div>
   );
 }

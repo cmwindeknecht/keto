@@ -4,7 +4,6 @@ import time
 from collections import deque
 from unittest.mock import MagicMock, patch
 
-import pytest
 from starlette.responses import JSONResponse
 
 from app.middleware.inbound_rate_limiter import InboundRateLimiterMiddleware

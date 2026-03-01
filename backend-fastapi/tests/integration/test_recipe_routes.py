@@ -177,7 +177,9 @@ def test_update_recipe(test_client, sample_usda_response):
         "name": "Updated Name",
     }
 
-    response = test_client.put(f"/internal/recipes/{recipe_id}", json=update_payload)
+    with patch("app.services.recipe.recipe_service.usda_service") as mock_usda:
+        mock_usda.search_by_fdcids = AsyncMock(return_value=sample_usda_response)
+        response = test_client.put(f"/internal/recipes/{recipe_id}", json=update_payload)
 
     assert response.status_code == 200
     data = response.json()

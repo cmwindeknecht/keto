@@ -2,7 +2,9 @@ import { baseApi } from "./baseApi";
 
 export interface USDASearchRequest {
   query: string;
+  dataType?: string[];
   pageSize?: number;
+  brandOwner?: string;
 }
 
 export interface USDANutrient {
