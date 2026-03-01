@@ -50,7 +50,9 @@ export default function LookupPage() {
   }, [searchQuery, dataType, brandOwner]);
 
   useEffect(() => {
-      reset();
+    setSearchResults([]);
+    setSearchQuery("");
+    setBrandOwner("");
   }, [dataType])
 
   const handleSearch = async () => {
@@ -85,7 +87,10 @@ export default function LookupPage() {
 
   const handleSelectFood = (food: any) => {
     dispatch(selectFood(food));
-    reset();
+    setSearchResults([]);
+    setSearchQuery("");
+    setBrandOwner("");
+    setDataType(null);
   };
 
   const handleQuantityChange = (newQuantity: number) => {
@@ -98,10 +103,6 @@ export default function LookupPage() {
 
   const handleClearSelection = () => {
     dispatch(clearSelection());
-    reset();
-  };
-
-  const reset = () => {
     setSearchResults([]);
     setSearchQuery("");
     setBrandOwner("");
