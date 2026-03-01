@@ -1,70 +1,70 @@
 import { baseApi } from "./baseApi";
 
 export interface Nutrient {
-  nutrient: {
-    id: number;
-    number: string;
-    name: string;
-    unitName: string;
+  readonly nutrient: {
+    readonly id: number;
+    readonly number: string;
+    readonly name: string;
+    readonly unitName: string;
   };
-  amount: number;
-  dataPoints?: number;
-  derivationCode?: string;
+  readonly amount: number;
+  readonly dataPoints?: number;
+  readonly derivationCode?: string;
 }
 
 export interface NutrientInfo {
-  name: string;
-  amount: number;
-  unit: string;
+  readonly name: string;
+  readonly amount: number;
+  readonly unit: string;
 }
 
 export interface IngredientDetail {
-  usda_fdc_id: number;
-  name: string;
-  data_type?: string;
-  brand_owner?: string;
-  nutrients: NutrientInfo[];
+  readonly usda_fdc_id: number;
+  readonly name: string;
+  readonly data_type?: string;
+  readonly brand_owner?: string;
+  readonly nutrients: NutrientInfo[];
 }
 
 export interface RecipeIngredient {
-  id: string;
-  ingredient: IngredientDetail;
-  quantity_grams: number;
-  nutrients: NutrientInfo[];
+  readonly id: string;
+  readonly ingredient: IngredientDetail;
+  readonly quantity_grams: number;
+  readonly nutrients: NutrientInfo[];
 }
 
 export interface Recipe {
-  id: string;
-  name: string;
-  cuisine?: string;
-  description?: string;
-  ingredients: RecipeIngredient[];
-  nutrients: NutrientInfo[];
-  created_at?: string;
-  updated_at?: string;
+  readonly id: string;
+  readonly name: string;
+  readonly cuisine?: string;
+  readonly description?: string;
+  readonly ingredients: RecipeIngredient[];
+  readonly nutrients: NutrientInfo[];
+  readonly created_at?: string;
+  readonly updated_at?: string;
 }
 
 export interface RecipeIngredientInput {
-  usda_fdc_id: number;
-  quantity_grams: number;
+  readonly usda_fdc_id: number;
+  readonly quantity_grams: number;
 }
 
 export interface CreateRecipeRequest {
-  name: string;
-  cuisine: string;
-  description?: string;
-  ingredients?: RecipeIngredientInput[];
+  readonly name: string;
+  readonly cuisine: string;
+  readonly description?: string;
+  readonly ingredients?: RecipeIngredientInput[];
 }
 
 export interface UpdateRecipeRequest {
-  name?: string;
-  cuisine?: string;
-  description?: string;
+  readonly name?: string;
+  readonly cuisine?: string;
+  readonly description?: string;
 }
 
 export interface AddIngredientRequest {
-  usda_fdc_id: number;
-  quantity_grams: number;
+  readonly usda_fdc_id: number;
+  readonly quantity_grams: number;
 }
 
 export const recipesApi = baseApi.injectEndpoints({
@@ -88,10 +88,7 @@ export const recipesApi = baseApi.injectEndpoints({
       invalidatesTags: [{ type: "Recipe", id: "LIST" }],
     }),
 
-    updateRecipe: builder.mutation<
-      Recipe,
-      { id: string; body: UpdateRecipeRequest }
-    >({
+    updateRecipe: builder.mutation<Recipe, { id: string; body: UpdateRecipeRequest }>({
       query: ({ id, body }) => ({
         url: `/recipes/${id}`,
         method: "PUT",
@@ -111,10 +108,7 @@ export const recipesApi = baseApi.injectEndpoints({
       invalidatesTags: [{ type: "Recipe", id: "LIST" }],
     }),
 
-    addIngredient: builder.mutation<
-      Recipe,
-      { id: string; body: AddIngredientRequest }
-    >({
+    addIngredient: builder.mutation<Recipe, { id: string; body: AddIngredientRequest }>({
       query: ({ id, body }) => ({
         url: `/recipes/${id}/ingredients`,
         method: "POST",
@@ -126,10 +120,22 @@ export const recipesApi = baseApi.injectEndpoints({
       ],
     }),
 
-    removeIngredient: builder.mutation<
+    updateIngredient: builder.mutation<
       Recipe,
-      { recipeId: string; ingredientId: string }
+      { recipeId: string; ingredientId: string; body: AddIngredientRequest }
     >({
+      query: ({ recipeId, ingredientId, body }) => ({
+        url: `/recipes/${recipeId}/ingredients/${ingredientId}`,
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: (_result, _error, { recipeId }) => [
+        { type: "Recipe", id: recipeId },
+        { type: "Recipe", id: "LIST" },
+      ],
+    }),
+
+    removeIngredient: builder.mutation<Recipe, { recipeId: string; ingredientId: string }>({
       query: ({ recipeId, ingredientId }) => ({
         url: `/recipes/${recipeId}/ingredients/${ingredientId}`,
         method: "DELETE",
@@ -149,5 +155,6 @@ export const {
   useUpdateRecipeMutation,
   useDeleteRecipeMutation,
   useAddIngredientMutation,
+  useUpdateIngredientMutation,
   useRemoveIngredientMutation,
 } = recipesApi;

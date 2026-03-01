@@ -1,26 +1,26 @@
 import { baseApi } from "./baseApi";
 
 export interface USDASearchRequest {
-  query: string;
-  dataType?: string[];
-  pageSize?: number;
-  brandOwner?: string;
+  readonly query: string;
+  readonly dataType?: string[];
+  readonly pageSize?: number;
+  readonly brandOwner?: string;
 }
 
 export interface USDANutrient {
-  nutrientId: number;
-  nutrientNumber: string;
-  nutrientName: string;
-  value: number;
-  unitName: string;
+  readonly nutrientId: number;
+  readonly nutrientNumber: string;
+  readonly nutrientName: string;
+  readonly value: number;
+  readonly unitName: string;
 }
 
 export interface USDAFood {
-  fdcId: number;
-  description: string;
-  dataType?: string;
-  brandOwner?: string;
-  foodNutrients: USDANutrient[];
+  readonly fdcId: number;
+  readonly description: string;
+  readonly dataType?: string;
+  readonly brandOwner?: string;
+  readonly foodNutrients: USDANutrient[];
 }
 
 export const usdaApi = baseApi.injectEndpoints({

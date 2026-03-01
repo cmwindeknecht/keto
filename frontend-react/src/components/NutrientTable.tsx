@@ -1,8 +1,8 @@
 import { Nutrient } from "@/store/api/recipesApi";
 
 interface NutrientTableProps {
-  nutrients: Nutrient[];
-  quantityGrams: number;
+  readonly nutrients: Nutrient[];
+  readonly quantityGrams: number;
 }
 
 const NUTRIENT_MAP: Record<number, { label: string; unit: string }> = {
@@ -19,7 +19,7 @@ const PRIMARY_NUTRIENTS = [1008, 1004, 1005, 1079, 1093, 1092, 1090];
 
 function getNutrientValue(nutrients: Nutrient[], nutrientId: number): number {
   const nutrient = nutrients.find(
-    (n) => parseInt(n.nutrient.number) === nutrientId,
+    (n) => Number.parseInt(n.nutrient.number) === nutrientId,
   );
   return nutrient ? nutrient.amount : 0;
 }

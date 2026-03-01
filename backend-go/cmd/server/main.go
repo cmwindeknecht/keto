@@ -128,6 +128,11 @@ func main() {
 			id := chi.URLParam(httpRequest, "id")
 			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalRecipesPath+"/"+id+"/ingredients")
 		})
+		subRouter.Put(routeRecipesIngredient, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+			id := chi.URLParam(httpRequest, "id")
+			ingredientID := chi.URLParam(httpRequest, "ingredient_id")
+			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalRecipesPath+"/"+id+"/ingredients/"+ingredientID)
+		})
 		subRouter.Delete(routeRecipesIngredient, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
 			id := chi.URLParam(httpRequest, "id")
 			ingredientID := chi.URLParam(httpRequest, "ingredient_id")

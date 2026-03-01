@@ -8,15 +8,19 @@ import {
   useUpdateRecipeMutation,
   useDeleteRecipeMutation,
   useAddIngredientMutation,
+  useUpdateIngredientMutation,
   useRemoveIngredientMutation,
 } from "@/store/api/recipesApi";
-import { useSearchMutation } from "@/store/api/usdaApi";
+import { IngredientSearch } from "@/components/IngredientSearch";
+import { QuantityInput } from "@/components/QuantityInput";
 import { NutrientTable } from "@/components/NutrientTable";
+import { formatAllUnits } from "@/lib/units";
 import type {
   RecipeIngredient,
   NutrientInfo,
   Nutrient,
 } from "@/store/api/recipesApi";
+import type { USDAFood } from "@/store/api/usdaApi";
 
 const NUTRIENT_NAME_TO_ID: Record<string, number> = {
   Energy: 1008,
@@ -37,7 +41,7 @@ function toNutrient(info: NutrientInfo): Nutrient {
 }
 
 interface RecipeDetailContentProps {
-  id: string;
+  readonly id: string;
 }
 
 export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
@@ -47,9 +51,9 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
   const [deleteRecipe, { isLoading: isDeleting }] = useDeleteRecipeMutation();
   const [addIngredient, { isLoading: isAddingIngredient }] =
     useAddIngredientMutation();
+  const [updateIngredient] = useUpdateIngredientMutation();
   const [removeIngredient, { isLoading: isRemovingIngredient }] =
     useRemoveIngredientMutation();
-  const [searchUSDA, { isLoading: isSearching }] = useSearchMutation();
 
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({
@@ -58,10 +62,16 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
     description: recipe?.description || "",
   });
   const [showAddIngredient, setShowAddIngredient] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [selectedUSDAFood, setSelectedUSDAFood] = useState<any>(null);
+  const [selectedUSDAFood, setSelectedUSDAFood] = useState<USDAFood | null>(
+    null,
+  );
   const [ingredientQuantity, setIngredientQuantity] = useState(100);
+
+  // Inline quantity editing
+  const [editingIngredientId, setEditingIngredientId] = useState<string | null>(
+    null,
+  );
+  const [editingQuantity, setEditingQuantity] = useState(0);
 
   const handleUpdateRecipe = async () => {
     try {
@@ -90,16 +100,6 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
     }
   };
 
-  const handleSearchUSDA = async () => {
-    if (!searchQuery.trim()) return;
-    try {
-      const result = await searchUSDA({ query: searchQuery }).unwrap();
-      setSearchResults(result);
-    } catch (err) {
-      console.error("Error searching USDA:", err);
-    }
-  };
-
   const handleAddIngredient = async () => {
     if (!selectedUSDAFood) return;
     try {
@@ -111,8 +111,6 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
         },
       }).unwrap();
       setSelectedUSDAFood(null);
-      setSearchQuery("");
-      setSearchResults([]);
       setIngredientQuantity(100);
       setShowAddIngredient(false);
     } catch (err) {
@@ -120,13 +118,31 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
     }
   };
 
+  const handleStartEditQuantity = (ingredient: RecipeIngredient) => {
+    setEditingIngredientId(ingredient.id);
+    setEditingQuantity(ingredient.quantity_grams);
+  };
+
+  const handleSaveQuantity = async (ingredient: RecipeIngredient) => {
+    try {
+      await updateIngredient({
+        recipeId: id,
+        ingredientId: ingredient.id,
+        body: {
+          usda_fdc_id: ingredient.ingredient.usda_fdc_id,
+          quantity_grams: editingQuantity,
+        },
+      }).unwrap();
+      setEditingIngredientId(null);
+    } catch (err) {
+      console.error("Error updating ingredient:", err);
+    }
+  };
+
   const handleRemoveIngredient = async (ingredientId: string) => {
     if (confirm("Remove this ingredient?")) {
       try {
-        await removeIngredient({
-          recipeId: id,
-          ingredientId,
-        }).unwrap();
+        await removeIngredient({ recipeId: id, ingredientId }).unwrap();
       } catch (err) {
         console.error("Error removing ingredient:", err);
       }
@@ -157,8 +173,9 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
         {editMode ? (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Name</label>
+              <label htmlFor="edit-name" className="block text-sm font-medium mb-1">Name</label>
               <input
+                id="edit-name"
                 type="text"
                 value={editData.name}
                 onChange={(e) =>
@@ -168,8 +185,9 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Cuisine</label>
+              <label htmlFor="edit-cuisine" className="block text-sm font-medium mb-1">Cuisine</label>
               <input
+                id="edit-cuisine"
                 type="text"
                 value={editData.cuisine}
                 onChange={(e) =>
@@ -179,10 +197,9 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">
-                Description
-              </label>
+              <label htmlFor="edit-description" className="block text-sm font-medium mb-1">Description</label>
               <textarea
+                id="edit-description"
                 value={editData.description}
                 onChange={(e) =>
                   setEditData({ ...editData, description: e.target.value })
@@ -256,7 +273,11 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-semibold">Ingredients</h2>
           <button
-            onClick={() => setShowAddIngredient(!showAddIngredient)}
+            onClick={() => {
+              setShowAddIngredient(!showAddIngredient);
+              setSelectedUSDAFood(null);
+              setIngredientQuantity(100);
+            }}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           >
             {showAddIngredient ? "Cancel" : "Add Ingredient"}
@@ -265,86 +286,44 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
 
         {showAddIngredient && (
           <div className="bg-gray-50 p-4 rounded mb-4 space-y-3">
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Search USDA Database
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="e.g., cabbage, chicken breast..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleSearchUSDA()}
-                  className="flex-1 px-3 py-2 border rounded-lg"
-                />
-                <button
-                  onClick={handleSearchUSDA}
-                  disabled={isSearching}
-                  className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 disabled:opacity-50"
-                >
-                  {isSearching ? "Searching..." : "Search"}
-                </button>
-              </div>
-            </div>
-
-            {searchResults.length > 0 && !selectedUSDAFood && (
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Results
-                </label>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {searchResults.map((food) => (
-                    <button
-                      key={food.fdcId}
-                      onClick={() => setSelectedUSDAFood(food)}
-                      className="w-full text-left p-2 border rounded hover:bg-blue-50"
-                    >
-                      <div className="font-medium">{food.description}</div>
-                      <div className="text-sm text-gray-600">
-                        Type: {food.dataType}{" "}
-                        {food.brandOwner && `| Brand: ${food.brandOwner}`}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {selectedUSDAFood && (
-              <div>
-                <div className="p-2 bg-blue-50 rounded mb-3">
-                  <div className="font-medium">
+            {selectedUSDAFood ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                  <span className="font-medium">
                     {selectedUSDAFood.description}
-                  </div>
+                  </span>
                   <button
                     onClick={() => setSelectedUSDAFood(null)}
                     className="text-sm text-blue-600 hover:underline"
                   >
-                    Change selection
+                    Change
                   </button>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Quantity (grams)
-                  </label>
-                  <input
-                    type="number"
+                  <label htmlFor="ingredient-quantity" className="block text-sm font-medium mb-1">Quantity</label>
+                  <QuantityInput
+                    inputId="ingredient-quantity"
                     value={ingredientQuantity}
-                    onChange={(e) =>
-                      setIngredientQuantity(parseFloat(e.target.value))
-                    }
-                    className="w-full px-3 py-2 border rounded-lg"
+                    onChange={setIngredientQuantity}
+                    inputClassName="w-28 px-3 py-2 border rounded-lg text-sm"
                   />
                 </div>
                 <button
                   onClick={handleAddIngredient}
                   disabled={isAddingIngredient}
-                  className="mt-3 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
+                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
                 >
                   {isAddingIngredient ? "Adding..." : "Add to Recipe"}
                 </button>
               </div>
+            ) : (
+              <IngredientSearch
+                onSelect={(food) => {
+                  setSelectedUSDAFood(food);
+                  setIngredientQuantity(100);
+                }}
+                placeholder="Search USDA for an ingredient..."
+              />
             )}
           </div>
         )}
@@ -355,22 +334,56 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
           <div className="space-y-4">
             {recipe.ingredients.map((ingredient: RecipeIngredient) => (
               <div key={ingredient.id} className="border rounded-lg p-4">
-                <div className="flex justify-between items-start mb-3">
+                <div className="flex justify-between items-center mb-3">
                   <div>
-                    <h3 className="text-lg font-semibold">
-                      {ingredient.ingredient.name}
-                    </h3>
-                    <p className="text-gray-600">
-                      {ingredient.quantity_grams}g
-                    </p>
+                    <h3 className="text-lg font-semibold">{ingredient.ingredient.name}</h3>
+                    {ingredient.ingredient.brand_owner && (
+                      <p className="text-sm text-gray-500">{ingredient.ingredient.brand_owner}</p>
+                    )}
                   </div>
-                  <button
-                    onClick={() => handleRemoveIngredient(ingredient.id)}
-                    disabled={isRemovingIngredient}
-                    className="text-red-600 hover:text-red-800 disabled:opacity-50"
-                  >
-                    Remove
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {editingIngredientId === ingredient.id ? (
+                      <>
+                        <QuantityInput
+                          value={editingQuantity}
+                          onChange={setEditingQuantity}
+                        />
+                        <button
+                          onClick={() => handleSaveQuantity(ingredient)}
+                          className="text-green-600 hover:text-green-800 text-sm font-medium"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditingIngredientId(null)}
+                          className="text-gray-500 hover:text-gray-700 text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span
+                          className="text-gray-500 text-sm cursor-pointer hover:text-blue-600"
+                        >
+                          {formatAllUnits(ingredient.quantity_grams)}
+                        </span>
+                        <button
+                          onClick={() => handleStartEditQuantity(ingredient)}
+                          className="text-blue-500 hover:text-blue-700 text-sm"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleRemoveIngredient(ingredient.id)}
+                          disabled={isRemovingIngredient}
+                          className="text-red-600 hover:text-red-800 text-sm disabled:opacity-50"
+                        >
+                          Remove
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <NutrientTable
                   nutrients={ingredient.nutrients.map(toNutrient)}

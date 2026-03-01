@@ -8,11 +8,7 @@ export const metadata: Metadata = {
   description: "Recipe and nutrition tracking for keto diets",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { readonly children: React.ReactNode }) {
   return (
     <html lang="en">
       <body className="bg-gray-50">

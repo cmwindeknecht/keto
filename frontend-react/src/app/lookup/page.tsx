@@ -64,18 +64,9 @@ export default function LookupPage() {
 
       const request: USDASearchRequest = {
         query: searchQuery,
+        dataType: dataType ?? Object.values(DATA_TYPES).flat(),          
+        ...(brandOwner.length > 0 && { brandOwner }),
       };
-
-      if (dataType == null) {
-        const all_types = Object.values(DATA_TYPES).flat();
-        request["dataType"] = all_types;
-      } else {
-        request["dataType"] = dataType;
-      }
-
-      if (brandOwner.length > 0) {
-        request["brandOwner"] = brandOwner;
-      }
 
       const result = await searchUSDA(request).unwrap();
       setSearchResults(result);
@@ -219,11 +210,9 @@ export default function LookupPage() {
               <h2 className="text-2xl font-semibold">
                 {selectedFood.description}
               </h2>
-              <p className="text-gray-600">
-                Type: {selectedFood.dataType}
-                {selectedFood.brandOwner &&
-                  ` | Brand: ${selectedFood.brandOwner}`}
-              </p>
+              {selectedFood.brandOwner && (
+                <p className="text-gray-600">Brand: {selectedFood.brandOwner}</p>
+              )}
             </div>
             <button
               onClick={handleClearSelection}

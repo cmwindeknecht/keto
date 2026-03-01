@@ -3,11 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  useListRecipesQuery,
-  useCreateRecipeMutation,
-} from "@/store/api/recipesApi";
-import { useSearchMutation } from "@/store/api/usdaApi";
+import { useListRecipesQuery, useCreateRecipeMutation } from "@/store/api/recipesApi";
+import { IngredientSearch } from "@/components/IngredientSearch";
+import { QuantityInput } from "@/components/QuantityInput";
 import type { Recipe } from "@/store/api/recipesApi";
 import type { USDAFood } from "@/store/api/usdaApi";
 
@@ -31,17 +29,15 @@ const CUISINES = [
 ];
 
 interface IngredientEntry {
-  fdcId: number;
-  description: string;
-  quantity_grams: number;
+  readonly fdcId: number;
+  readonly description: string;
+  readonly quantity_grams: number;
 }
 
 export default function RecipesPage() {
   const router = useRouter();
   const { data: recipes = [], isLoading, error } = useListRecipesQuery();
   const [createRecipe, { isLoading: isCreating }] = useCreateRecipeMutation();
-  const [searchUSDA, { isLoading: isSearchingIngredients }] =
-    useSearchMutation();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -51,24 +47,12 @@ export default function RecipesPage() {
     description: "",
   });
   const [ingredients, setIngredients] = useState<IngredientEntry[]>([]);
-  const [ingredientQuery, setIngredientQuery] = useState("");
-  const [ingredientResults, setIngredientResults] = useState<USDAFood[]>([]);
 
   const filteredRecipes = recipes.filter(
     (recipe) =>
       recipe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (recipe.cuisine?.toLowerCase().includes(searchTerm.toLowerCase()) ??
-        false),
+      (recipe.cuisine?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
   );
-
-  const handleIngredientSearch = async () => {
-    if (!ingredientQuery.trim()) return;
-    const results = await searchUSDA({
-      query: ingredientQuery,
-      pageSize: 8,
-    }).unwrap();
-    setIngredientResults(results);
-  };
 
   const handleAddIngredient = (food: USDAFood) => {
     if (ingredients.some((i) => i.fdcId === food.fdcId)) return;
@@ -76,8 +60,6 @@ export default function RecipesPage() {
       ...ingredients,
       { fdcId: food.fdcId, description: food.description, quantity_grams: 100 },
     ]);
-    setIngredientResults([]);
-    setIngredientQuery("");
   };
 
   const handleRemoveIngredient = (fdcId: number) => {
@@ -85,11 +67,7 @@ export default function RecipesPage() {
   };
 
   const handleQuantityChange = (fdcId: number, quantity_grams: number) => {
-    setIngredients(
-      ingredients.map((i) =>
-        i.fdcId === fdcId ? { ...i, quantity_grams } : i,
-      ),
-    );
+    setIngredients(ingredients.map((i) => (i.fdcId === fdcId ? { ...i, quantity_grams } : i)));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -114,8 +92,7 @@ export default function RecipesPage() {
     }
   };
 
-  if (isLoading)
-    return <div className="text-center py-8">Loading recipes...</div>;
+  if (isLoading) return <div className="text-center py-8">Loading recipes...</div>;
   if (error) console.error("Recipe query error:", error);
 
   return (
@@ -140,22 +117,16 @@ export default function RecipesPage() {
                 type="text"
                 required
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">
-                Cuisine *
-              </label>
+              <label className="block text-sm font-medium mb-1">Cuisine *</label>
               <select
                 required
                 value={formData.cuisine}
-                onChange={(e) =>
-                  setFormData({ ...formData, cuisine: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, cuisine: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
               >
                 {CUISINES.map((c) => (
@@ -166,84 +137,33 @@ export default function RecipesPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">
-                Description
-              </label>
+              <label className="block text-sm font-medium mb-1">Description</label>
               <textarea
                 value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Ingredients
-              </label>
-              <div className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  placeholder="Search USDA for an ingredient..."
-                  value={ingredientQuery}
-                  onChange={(e) => setIngredientQuery(e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" &&
-                    (e.preventDefault(), handleIngredientSearch())
-                  }
-                  className="flex-1 px-3 py-2 border rounded-lg"
-                />
-                <button
-                  type="button"
-                  onClick={handleIngredientSearch}
-                  disabled={isSearchingIngredients}
-                  className="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300 disabled:opacity-50"
-                >
-                  {isSearchingIngredients ? "..." : "Search"}
-                </button>
-              </div>
-
-              {ingredientResults.length > 0 && (
-                <div className="border rounded-lg max-h-48 overflow-y-auto mb-2">
-                  {ingredientResults.map((food) => (
-                    <button
-                      key={food.fdcId}
-                      type="button"
-                      onClick={() => handleAddIngredient(food)}
-                      className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b last:border-0"
-                    >
-                      <span className="font-medium">{food.description}</span>
-                      <span className="text-xs text-gray-500 ml-2">
-                        {food.dataType}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
+              <label className="block text-sm font-medium mb-2">Ingredients</label>
+              <IngredientSearch
+                onSelect={handleAddIngredient}
+                placeholder="Search USDA for an ingredient..."
+              />
 
               {ingredients.length > 0 && (
-                <div className="space-y-2">
+                <div className="space-y-2 mt-3">
                   {ingredients.map((ing) => (
                     <div
                       key={ing.fdcId}
                       className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg"
                     >
                       <span className="flex-1 text-sm">{ing.description}</span>
-                      <input
-                        type="number"
+                      <QuantityInput
                         value={ing.quantity_grams}
-                        onChange={(e) =>
-                          handleQuantityChange(
-                            ing.fdcId,
-                            parseFloat(e.target.value),
-                          )
-                        }
-                        className="w-24 px-2 py-1 border rounded text-sm"
-                        min="0.1"
-                        step="0.1"
+                        onChange={(grams) => handleQuantityChange(ing.fdcId, grams)}
                       />
-                      <span className="text-sm text-gray-500">g</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveIngredient(ing.fdcId)}
@@ -286,13 +206,9 @@ export default function RecipesPage() {
             <Link href={`/recipes/${recipe.id}`} key={recipe.id}>
               <div className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition cursor-pointer">
                 <h2 className="text-xl font-semibold">{recipe.name}</h2>
-                {recipe.cuisine && (
-                  <p className="text-gray-600">{recipe.cuisine}</p>
-                )}
+                {recipe.cuisine && <p className="text-gray-600">{recipe.cuisine}</p>}
                 {recipe.description && (
-                  <p className="text-gray-700 text-sm mt-2">
-                    {recipe.description}
-                  </p>
+                  <p className="text-gray-700 text-sm mt-2">{recipe.description}</p>
                 )}
                 <p className="text-gray-500 text-sm mt-2">
                   {recipe.ingredients?.length || 0} ingredients
