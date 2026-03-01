@@ -64,7 +64,7 @@ export default function LookupPage() {
 
       const request: USDASearchRequest = {
         query: searchQuery,
-        dataType: dataType ?? Object.values(DATA_TYPES).flat(),          
+        dataType: dataType ?? Object.values(DATA_TYPES).flat(),
         ...(brandOwner.length > 0 && { brandOwner }),
       };
 

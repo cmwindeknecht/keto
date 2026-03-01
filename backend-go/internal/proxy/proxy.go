@@ -26,8 +26,8 @@ func NewReverseProxy(cfg *config.Config) (*httputil.ReverseProxy, error) {
 			Timeout:   10 * time.Second,
 			KeepAlive: 60 * time.Second,
 		}).Dial,
-		TLSHandshakeTimeout: 10 * time.Second,
-		IdleConnTimeout:     60 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		IdleConnTimeout:       60 * time.Second,
 		ResponseHeaderTimeout: cfg.RequestTimeout,
 	}
 

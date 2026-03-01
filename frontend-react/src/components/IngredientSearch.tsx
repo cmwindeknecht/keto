@@ -43,7 +43,7 @@ export function IngredientSearch({
       dataType: dataType ?? ALL_DATA_TYPES,
       ...(brandOwner.length > 0 && {brandOwner})
     };
-    
+
     try {
       const foods = await searchUSDA(request).unwrap();
       setResults(foods);
