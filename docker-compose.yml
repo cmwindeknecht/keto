@@ -185,9 +185,9 @@ services:
       - ELASTICSEARCH_URL=http://elasticsearch:9200
     depends_on:
       kafka:
-        condition: service_started
+        condition: service_healthy
       elasticsearch:
-        condition: service_started
+        condition: service_healthy
       redis:
         condition: service_started
     volumes:
@@ -212,11 +212,11 @@ services:
       - ELASTICSEARCH_URL=http://elasticsearch:9200
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
         condition: service_started
       elasticsearch:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - ./backend-fastapi:/app
     networks:
@@ -242,7 +242,7 @@ services:
       - PORT=8080
       - API_KEYS=test-key,dev-key
       - CACHE_ENABLED=true
-      - DEBUG=false
+      - DEBUG=true
     depends_on:
       backend-fastapi:
         condition: service_started
@@ -260,25 +260,28 @@ services:
       start_period: 10s
 
   # React Frontend
-  # frontend-react:
-  #   build:
-  #     context: .
-  #     dockerfile: docker/frontend-react.Dockerfile
-  #   container_name: keto-frontend-react
-  #   ports:
-  #     - "3000:3000"
-  #   environment:
-  #     - REACT_APP_API_URL=http://localhost:8080
-  #     - CHOKIDAR_USEPOLLING=true
-  #   depends_on:
-  #     - backend-go
-  #   volumes:
-  #     - ./frontend-react:/app
-  #     - /app/node_modules
-  #   networks:
-  #     - keto
-  #   stdin_open: true
-  #   tty: true
+  frontend-react:
+    build:
+      context: .
+      dockerfile: docker/frontend-react.Dockerfile
+      target: development
+    container_name: keto-frontend-react
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+      - .env.local
+    depends_on:
+      backend-go:
+        condition: service_healthy
+    volumes:
+      - ./frontend-react:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - keto
+    stdin_open: true
+    tty: true
 
   # Code Quality Analysis
   sonarqube:

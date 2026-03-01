@@ -26,6 +26,7 @@ class ElasticsearchService:
                 "fdc_id": {"type": "keyword"},
                 "name": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
                 "data_type": {"type": "keyword"},
+                "brand_owner": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
                 "search_terms": {"type": "text"},
                 "nutrients": {"type": "object", "enabled": False},
             }
@@ -66,7 +67,7 @@ class ElasticsearchService:
             logger.error(f"Error initializing Elasticsearch: {e}")
             raise
 
-    async def search_ingredients(self, query: str, data_types: list[str], limit: int = 20) -> list[dict]:
+    async def search_ingredients(self, query: str, data_types: list[str], limit: int = 20, brand_owner: Optional[str] = None) -> list[dict]:
         """
         Fuzzy search for ingredients with dataType filter.
 
@@ -83,9 +84,13 @@ class ElasticsearchService:
             assert self._client is not None
 
         try:
+            must: list[dict] = [{"multi_match": {"query": query, "fields": ["name^2", "search_terms"], "fuzziness": "AUTO", "operator": "and"}}]
+            if brand_owner:
+                must.append({"match": {"brand_owner": {"query": brand_owner, "fuzziness": "AUTO"}}})
+
             search_query = {
                 "bool": {
-                    "must": [{"multi_match": {"query": query, "fields": ["name^2", "search_terms"], "fuzziness": "AUTO"}}],
+                    "must": must,
                     "filter": [{"terms": {"data_type": data_types}}],
                 }
             }
@@ -120,6 +125,7 @@ class ElasticsearchService:
             fdc_id = usda_data.get("fdcId")
             name = usda_data.get("description", "Unknown")
             data_type = usda_data.get("dataType", "Branded")
+            brand_owner = usda_data.get("brandOwner")
 
             # Extract search terms from name (split by common delimiters)
             search_terms = name.lower().split(",")
@@ -129,6 +135,7 @@ class ElasticsearchService:
                 "fdc_id": fdc_id,
                 "name": name,
                 "data_type": data_type,
+                "brand_owner": brand_owner,
                 "search_terms": search_terms,
                 "nutrients": usda_data.get("foodNutrients", []),
             }

@@ -69,16 +69,10 @@ func NewReverseProxy(cfg *config.Config) (*httputil.ReverseProxy, error) {
 		// Add proxy header
 		resp.Header.Set("X-Proxy-By", "keto-api-gateway")
 
-		// Ensure CORS headers
-		if resp.Header.Get("Access-Control-Allow-Origin") == "" {
-			resp.Header.Set("Access-Control-Allow-Origin", "*")
-		}
-		if resp.Header.Get("Access-Control-Allow-Methods") == "" {
-			resp.Header.Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		}
-		if resp.Header.Get("Access-Control-Allow-Headers") == "" {
-			resp.Header.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
-		}
+		// Strip upstream CORS headers — cors.go middleware handles them on the gateway
+		resp.Header.Del("Access-Control-Allow-Origin")
+		resp.Header.Del("Access-Control-Allow-Methods")
+		resp.Header.Del("Access-Control-Allow-Headers")
 
 		return nil
 	}

@@ -105,15 +105,16 @@ class USDAService:
     @handle_usda_errors
     async def search_by_criteria(self, criteria: FoodsByCriteria, url: str | None = None, include_brands: bool = False) -> list[dict]:
         """
-        Search for ingredients with Elasticsearch-first strategy.
+        Search for ingredients with query-cache-first strategy.
 
         Flow:
-        1. Query Elasticsearch for matching FDC IDs (fuzzy search)
-        2. Check cache for those IDs
-        3. For missing IDs, query USDA API
-        4. Cache new results in Redis
-        5. Publish to Kafka for ES indexing
-        6. Return merged results
+        1. Check Redis search cache by query string — return immediately on hit
+        2. Query Elasticsearch for any already-indexed matching FDC IDs (supplemental)
+        3. Query USDA API for canonical search results
+        4. Cache individual ingredients in Redis by FDC ID
+        5. Publish new ingredients to Kafka for ES indexing
+        6. Cache the full result set by query string
+        7. Return merged results
 
         Args:
             criteria: FoodsByCriteria with search query and filters
@@ -126,64 +127,68 @@ class USDAService:
         Raises:
             USDAAPIError: If the API call fails
         """
-        # Determine data types to search
-        data_types = ["Foundation", "SR Legacy"]
-        if include_brands:
-            data_types.append("Branded")
+        # Step 1: Check search query cache
+        cached = await cache_service.get_search_results(criteria.query, criteria.data_type, criteria.brand_owner)
+        if cached is not None:
+            logger.info(f"[SEARCH] Query cache HIT for '{criteria.query}' — returning {len(cached)} cached results, skipping ES + USDA")
+            return cached
 
-        # Step 1: Query Elasticsearch for matching ingredient IDs
-        es_results = await elasticsearch_service.search_ingredients(criteria.query, data_types, criteria.page_size or 20)
+        logger.info(f"[SEARCH] Query cache MISS for '{criteria.query}' — proceeding to ES + USDA")
+
+        # Step 2: Query Elasticsearch for supplemental results (best-effort, sparse index)
+        es_results = await elasticsearch_service.search_ingredients(
+            criteria.query, criteria.data_type or [], criteria.page_size or 20, criteria.brand_owner
+        )
+        logger.info(f"[SEARCH] ES returned {len(es_results)} candidate(s) for '{criteria.query}'")
 
         results, missing_fdc_ids = await self.intersect_results(es_results)
+        logger.info(f"[SEARCH] ES candidates — {len(results)} found in ingredient cache, {len(missing_fdc_ids)} not cached")
 
-        # If all results found in cache (and ES returned something), return early
-        if not missing_fdc_ids and results:
-            logger.info(f"All {len(results)} ES search results found in cache for query '{criteria.query}' with data types {data_types}")
-            return results
-
-        logger.info(f"{len(results)} ES search results found in cache, {len(missing_fdc_ids)} missing for query '{criteria.query}'")
-
-        # Step 3: Query USDA for missing ingredients (or if ES returned nothing)
+        # Step 3: Always query USDA for the canonical search results
         if url is None:
             url = f"{self.base_url}{self.USDA_FOODS_SEARCH_ENDPOINT}"
 
+        logger.info(f"[SEARCH] Querying USDA at {url} for '{criteria.query}'")
         async with httpx.AsyncClient(timeout=self.DEFAULT_TIMEOUT) as client:
             request_body = criteria.model_dump(by_alias=True, exclude_none=True)
-            logger.info(f"search_by_criteria request to {url}, Request body: {request_body}")
-
             response = await client.post(
                 url,
                 json=request_body,
                 params=self.get_api_params(),
             )
-
             response.raise_for_status()
 
             result_dict = response.json()
-            if result_dict.get("foods"):
-                logger.info(f"Got {len(result_dict['foods'])} results from USDA search")
+            usda_food_count = len(result_dict.get("foods", []))
+            logger.info(f"[SEARCH] USDA returned {usda_food_count} result(s) for '{criteria.query}'")
             search_result = SearchResult.model_validate(result_dict)
 
-            # Cache and publish each result
+            existing_fdc_ids = {r.get("fdcId") for r in results}
             for food in search_result.foods:
                 food_dict = food.model_dump(by_alias=True, exclude_none=True)
 
-                # Only add if not already in results
-                if food_dict["fdcId"] not in [r.get("fdcId") for r in results]:
-                    # Cache in Redis
+                if food_dict["fdcId"] not in existing_fdc_ids:
+                    # Step 4: Cache individual ingredient by FDC ID
                     await cache_service.set_ingredient(food_dict)
+                    logger.debug(f"[SEARCH] Cached ingredient fdcId={food_dict['fdcId']} ({food_dict.get('description', '?')})")
 
-                    # Publish to Kafka
+                    # Step 5: Publish to Kafka for ES indexing
                     try:
                         await kafka_producer.publish_ingredient_cached(
                             IngredientCached(fdc_id=food_dict["fdcId"], data=food_dict, cached_at=datetime.now(timezone.utc))
                         )
+                        logger.debug(f"[SEARCH] Published fdcId={food_dict['fdcId']} to Kafka for ES indexing")
                     except Exception as e:
-                        logger.warning(f"Failed to publish ingredient {food_dict['fdcId']} to Kafka: {e}")
+                        logger.warning(f"[SEARCH] Failed to publish fdcId={food_dict['fdcId']} to Kafka: {e}")
 
                     results.append(food_dict)
+                    existing_fdc_ids.add(food_dict["fdcId"])
 
-            return results
+        # Step 6: Cache the full result set by query string
+        await cache_service.set_search_results(criteria.query, results, criteria.data_type, criteria.brand_owner)
+        logger.info(f"[SEARCH] Cached {len(results)} result(s) under query '{criteria.query}'")
+
+        return results
 
     async def intersect_results(self, es_results: list[dict]) -> tuple[list[dict], list[dict]]:
         results = []

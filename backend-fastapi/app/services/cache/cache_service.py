@@ -33,6 +33,8 @@ class CacheService:
     # Cache configuration
     INGREDIENT_TTL = 30 * 24 * 60 * 60  # 30 days in seconds
     INGREDIENT_KEY_PREFIX = "ingredient"
+    SEARCH_TTL = 60 * 60  # 1 hour in seconds
+    SEARCH_KEY_PREFIX = "search"
 
     def __init__(self):
         self.redis_url = settings.REDIS_URL
@@ -114,6 +116,41 @@ class CacheService:
                 await self._redis_client.set(key, json.dumps(ingredient))
         except Exception as e:
             logger.error(f"Error caching ingredient {fdc_id}: {e}")
+
+    def _get_search_results_key(self, query: str, data_type: Optional[list[str]] = None, brand_owner: Optional[str] = None) -> str:
+        type_suffix = f":{':'.join(sorted(data_type))}" if data_type else ""
+        brand_suffix = f":{brand_owner.lower().strip()}" if brand_owner else ""
+        return f"{self.SEARCH_KEY_PREFIX}:{query.lower().strip()}{type_suffix}{brand_suffix}"
+
+    async def get_search_results(self, query: str, data_type: Optional[list[str]] = None, brand_owner: Optional[str] = None) -> Optional[list[dict]]:
+        """Retrieve cached search results for a query string."""
+        if not self._redis_client:
+            await self.connect()
+            assert self._redis_client is not None
+
+        key = self._get_search_results_key(query, data_type, brand_owner)
+        data = await self._redis_client.get(key)
+        if data:
+            logger.info(f"Search cache hit for query '{query}'")
+            results: list[dict[Any, Any]] = json.loads(data)
+            return results
+        logger.info(f"Search cache miss for query '{query}'")
+        return None
+
+    async def set_search_results(
+        self, query: str, results: list[dict], data_type: Optional[list[str]] = None, brand_owner: Optional[str] = None
+    ) -> None:
+        """Cache search results for a query string with 1-hour TTL."""
+        if not self._redis_client:
+            await self.connect()
+            assert self._redis_client is not None
+
+        key = self._get_search_results_key(query, data_type, brand_owner)
+        try:
+            await self._redis_client.setex(key, self.SEARCH_TTL, json.dumps(results))
+            logger.info(f"Cached {len(results)} search results for query '{query}'")
+        except Exception as e:
+            logger.error(f"Error caching search results for query '{query}': {e}")
 
     async def clear_all_ingredients(self) -> int:
         """

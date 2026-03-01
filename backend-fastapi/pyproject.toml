@@ -37,3 +37,6 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
 strict_optional = true
+
+[tool.pylint.main]
+init-hook='import sys; sys.path.insert(0, ".")'
