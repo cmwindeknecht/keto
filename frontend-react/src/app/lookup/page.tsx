@@ -49,6 +49,10 @@ export default function LookupPage() {
       setFoodSearchError("");
   }, [searchQuery, dataType, brandOwner]);
 
+  useEffect(() => {
+      reset();
+  }, [dataType])
+
   const handleSearch = async () => {
     try {
       if (searchQuery.length == 0) {

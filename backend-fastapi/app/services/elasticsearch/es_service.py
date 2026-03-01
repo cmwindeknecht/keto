@@ -84,7 +84,7 @@ class ElasticsearchService:
             assert self._client is not None
 
         try:
-            must: list[dict] = [{"multi_match": {"query": query, "fields": ["name^2", "search_terms"], "fuzziness": "AUTO"}}]
+            must: list[dict] = [{"multi_match": {"query": query, "fields": ["name^2", "search_terms"], "fuzziness": "AUTO", "operator": "and"}}]
             if brand_owner:
                 must.append({"match": {"brand_owner": {"query": brand_owner, "fuzziness": "AUTO"}}})
 
