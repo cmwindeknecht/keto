@@ -62,11 +62,15 @@ func AuthMiddleware(cfg *config.Config) func(next http.Handler) http.Handler {
 	}
 }
 
+const (
+	publicPathHealth = "/health"
+	publicPathRoot   = "/"
+)
+
 func shouldSkipAuth(method, path string) bool {
-	// Public endpoints that don't require auth
 	publicPaths := map[string]bool{
-		"/health": true,
-		"/":       true,
+		publicPathHealth: true,
+		publicPathRoot:   true,
 	}
 	return publicPaths[path]
 }
