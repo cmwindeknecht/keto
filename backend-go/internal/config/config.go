@@ -10,15 +10,15 @@ import (
 )
 
 type Config struct {
-	Port            int
-	FastAPIURL      string
-	RedisURL        string
-	JWTSecret       string
-	APIKeys         []string
-	CacheTTL        time.Duration
-	CacheEnabled    bool
-	Debug           bool
-	RequestTimeout  time.Duration
+	Port           int
+	FastAPIURL     string
+	RedisURL       string
+	JWTSecret      string
+	APIKeys        []string
+	CacheTTL       time.Duration
+	CacheEnabled   bool
+	Debug          bool
+	RequestTimeout time.Duration
 }
 
 func Load() *Config {

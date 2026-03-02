@@ -1,26 +1,43 @@
 import { baseApi } from "./baseApi";
 
 export interface USDASearchRequest {
-  query: string;
-  dataType?: string[];
-  pageSize?: number;
-  brandOwner?: string;
+  readonly query: string;
+  readonly dataType?: string[];
+  readonly pageSize?: number;
+  readonly brandOwner?: string;
 }
 
 export interface USDANutrient {
-  nutrientId: number;
-  nutrientNumber: string;
-  nutrientName: string;
-  value: number;
-  unitName: string;
+  readonly nutrientId: number;
+  readonly nutrientNumber: string;
+  readonly nutrientName: string;
+  readonly value: number;
+  readonly unitName: string;
+}
+
+export interface FoodPortion {
+  readonly id?: number;
+  readonly amount?: number;
+  readonly gramWeight?: number;
+  readonly portionDescription?: string;
+  readonly modifier?: string;
+  readonly measureUnit?: {
+    readonly id?: number;
+    readonly name?: string;
+    readonly abbreviation?: string;
+  };
 }
 
 export interface USDAFood {
-  fdcId: number;
-  description: string;
-  dataType?: string;
-  brandOwner?: string;
-  foodNutrients: USDANutrient[];
+  readonly fdcId: number;
+  readonly description: string;
+  readonly dataType?: string;
+  readonly brandOwner?: string;
+  readonly foodNutrients: USDANutrient[];
+  readonly foodPortions?: FoodPortion[];
+  readonly servingSize?: number;
+  readonly servingSizeUnit?: string;
+  readonly householdServingFullText?: string;
 }
 
 export const usdaApi = baseApi.injectEndpoints({
@@ -32,7 +49,14 @@ export const usdaApi = baseApi.injectEndpoints({
         body,
       }),
     }),
+    getFoodDetails: builder.mutation<USDAFood[], { readonly fdcIds: number[] }>({
+      query: (body) => ({
+        url: "/usda/foods",
+        method: "POST",
+        body,
+      }),
+    }),
   }),
 });
 
-export const { useSearchMutation } = usdaApi;
+export const { useSearchMutation, useGetFoodDetailsMutation } = usdaApi;

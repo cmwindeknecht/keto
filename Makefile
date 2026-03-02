@@ -80,7 +80,7 @@ lint: ## Run all linting checks
 sonarqube-status: ## Check SonarQube health
 	curl -s http://localhost:9000/api/system/health | jq .
 
-sonarqube-scan: ## Run SonarQube analysis (requires sonar-scanner)
+sonarqube-scan: ## Run SonarQube analysis
 	cd backend-fastapi && \
 	python -m pytest --cov=app --cov-report=xml && \
 	python -m pylint app/ --exit-zero -f parseable > pylint-report.txt && \
@@ -96,5 +96,5 @@ requirements:
 	python -m pip install -r backend-fastapi/requirements.txt
 	python -m pip install -r backend-fastapi/requirements-dev.txt
 
-env:
-	source .venv/Scripts/activate
+# env:  Doesn't run - leaving it for reference
+# 	source .venv/Scripts/activate

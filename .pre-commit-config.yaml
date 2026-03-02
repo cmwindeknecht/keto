@@ -1,4 +1,5 @@
 repos:
+  # ── General ────────────────────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
@@ -6,27 +7,34 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
         files: \.(yaml|yml)$
+      - id: check-json
+        exclude: tsconfig.*\.json$
+      - id: check-merge-conflict
       - id: check-added-large-files
         args: ['--maxkb=1000']
 
+  # ── Python / FastAPI ───────────────────────────────────────────────────────
   - repo: https://github.com/psf/black
     rev: 23.12.1
     hooks:
       - id: black
         language_version: python3.12
         args: ['--line-length=150']
+        files: backend-fastapi
 
   - repo: https://github.com/PyCQA/isort
     rev: 5.13.2
     hooks:
       - id: isort
         args: ['--profile=black', '--line-length=150']
+        files: backend-fastapi
 
   - repo: https://github.com/PyCQA/flake8
     rev: 6.1.0
     hooks:
       - id: flake8
         args: ['--max-line-length=150', '--ignore=E203,W503,E501']
+        files: backend-fastapi
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.7.1
@@ -44,8 +52,10 @@ repos:
         args: ['-c', 'backend-fastapi/.bandit', '-ll']
         files: backend-fastapi
 
+  # ── Local hooks (Python, Go, Frontend) ────────────────────────────────────
   - repo: local
     hooks:
+      # Python tests
       - id: pytest
         name: pytest
         entry: bash -c 'cd backend-fastapi && python -m pytest tests/ -q'
@@ -53,3 +63,67 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-commit]
+
+      # Go — format (auto-fixes then fails so you re-stage)
+      - id: go-fmt
+        name: Go Format
+        entry: bash -c 'cd backend-go && unformatted=$(gofmt -l .) && if [ -n "$unformatted" ]; then echo "Formatting:"; echo "$unformatted"; gofmt -w .; exit 1; fi'
+        language: system
+        files: ^backend-go/.*\.go$
+        pass_filenames: false
+
+      # Go — vet
+      - id: go-vet
+        name: Go Vet
+        entry: bash -c 'cd backend-go && go vet ./...'
+        language: system
+        files: ^backend-go/.*\.(go|mod)$
+        pass_filenames: false
+
+      # Go — build (catches compile errors fast)
+      - id: go-build
+        name: Go Build
+        entry: bash -c 'cd backend-go && go build ./...'
+        language: system
+        files: ^backend-go/.*\.(go|mod|sum)$
+        pass_filenames: false
+
+      # Go — golangci-lint
+      - id: golangci-lint
+        name: golangci-lint
+        entry: bash -c 'cd backend-go && golangci-lint run ./...'
+        language: system
+        files: ^backend-go/.*\.go$
+        pass_filenames: false
+
+      # Go — tests
+      - id: go-test
+        name: Go Tests
+        entry: bash -c 'cd backend-go && go test ./...'
+        language: system
+        files: ^backend-go/.*\.go$
+        pass_filenames: false
+
+      # Frontend — Prettier (check only; run `npx prettier --write .` to fix)
+      - id: frontend-prettier
+        name: Prettier
+        entry: bash -c 'cd frontend-react && npx prettier --check .'
+        language: system
+        files: ^frontend-react/.*\.(ts|tsx|js|jsx|css|json)$
+        pass_filenames: false
+
+      # Frontend — ESLint
+      - id: frontend-eslint
+        name: ESLint
+        entry: bash -c 'cd frontend-react && npm run lint'
+        language: system
+        files: ^frontend-react/.*\.(ts|tsx|js|jsx)$
+        pass_filenames: false
+
+      # Frontend — TypeScript type check
+      - id: frontend-typecheck
+        name: TypeScript
+        entry: bash -c 'cd frontend-react && npx tsc --noEmit'
+        language: system
+        files: ^frontend-react/.*\.(ts|tsx)$
+        pass_filenames: false

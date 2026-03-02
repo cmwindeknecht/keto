@@ -57,6 +57,29 @@ class SearchIngredientsResponse(BaseModel):
 
 
 # USDA Route Response Models
+class MeasureUnit(BaseModel):
+    """Unit of measure for a food portion (e.g. cup, tablespoon, leaf)."""
+
+    id: Optional[int] = None
+    name: Optional[str] = None
+    abbreviation: Optional[str] = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class FoodPortion(BaseModel):
+    """A named serving size with gram weight."""
+
+    id: Optional[int] = None
+    amount: Optional[float] = None
+    gram_weight: Optional[float] = Field(None, alias="gramWeight")
+    portion_description: Optional[str] = Field(None, alias="portionDescription")
+    modifier: Optional[str] = None
+    measure_unit: Optional[MeasureUnit] = Field(None, alias="measureUnit")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class SearchResultFood(BaseModel):
     """Food item in search results."""
 
@@ -70,5 +93,11 @@ class SearchResultFood(BaseModel):
     ingredients: Optional[str] = Field(None, description="Ingredients list")
     ndb_number: Optional[int] = Field(None, alias="ndbNumber", description="NDB number")
     score: Optional[float] = Field(None, description="Search relevance score")
+    food_portions: Optional[list[FoodPortion]] = Field(None, alias="foodPortions", description="Named serving sizes")
+    serving_size: Optional[float] = Field(None, alias="servingSize", description="Serving size value (branded foods)")
+    serving_size_unit: Optional[str] = Field(None, alias="servingSizeUnit", description="Serving size unit (branded foods)")
+    household_serving_full_text: Optional[str] = Field(
+        None, alias="householdServingFullText", description="Human-readable serving description (branded foods, e.g. '1 tablespoon')"
+    )
 
     model_config = ConfigDict(populate_by_name=True)

@@ -33,7 +33,7 @@ run: build
 	./bin/${BINARY_NAME}
 
 dev: setup
-	@command -v air >/dev/null 2>&1 || { echo "Installing air for hot reload..."; go install github.com/cosmtrek/air@latest; }
+	@command -v air >/dev/null 2>&1 || { echo "Installing air for hot reload..."; go install github.com/air-verse/air@latest; }
 	air
 
 test:
@@ -61,7 +61,7 @@ docker-run: docker-build
 
 # Development setup - install dev tools
 dev-install:
-	go install github.com/cosmtrek/air@latest
+	go install github.com/air-verse/air@latest
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install gotest.tools/gotestsum@latest
 	@echo "Development tools installed!"

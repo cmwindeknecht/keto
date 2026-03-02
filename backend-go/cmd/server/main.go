@@ -18,8 +18,39 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-const RECIPES_ROUTE = "/internal/recipes/"
-const USDA_ROUTE = "/internal/usda/"
+const (
+	// Public routes
+	routeHealth  = "/health"
+	routeRoot    = "/"
+	routeDocs    = "/docs"
+	routeSwagger = "/swagger-ui/*"
+
+	// Public recipe routes
+	routeRecipes            = "/recipes"
+	routeRecipesID          = "/recipes/{id}"
+	routeRecipesIngredients = "/recipes/{id}/ingredients"
+	routeRecipesIngredient  = "/recipes/{id}/ingredients/{ingredient_id}"
+
+	// Public USDA routes
+	routeUsdaFood              = "/usda/food/{fdc_id}"
+	routeUsdaFoods             = "/usda/foods"
+	routeUsdaFoodsList         = "/usda/foods/list"
+	routeUsdaSearch            = "/usda/search"
+	routeUsdaSearchAdvanced    = "/usda/search/advanced"
+	routeUsdaSearchIngredients = "/usda/search-ingredients"
+	routeUsdaIngredient        = "/usda/ingredient/{fdc_id}"
+
+	// Internal FastAPI paths
+	internalRecipesPath = "/internal/recipes"
+	internalUsdaPath    = "/internal/usda"
+
+	// Server config
+	serverReadTimeout     = 15 * time.Second
+	serverWriteTimeout    = 15 * time.Second
+	serverIdleTimeout     = 60 * time.Second
+	serverShutdownTimeout = 30 * time.Second
+	serverMaxHeaderBytes  = 1 << 20
+)
 
 func main() {
 	// Load configuration
@@ -58,12 +89,12 @@ func main() {
 	router.Use(middleware.LoggingMiddleware())
 
 	// Public endpoints (no auth required)
-	router.Get("/health", healthHandler)
-	router.Get("/", rootHandler)
-	router.Get("/docs", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+	router.Get(routeHealth, healthHandler)
+	router.Get(routeRoot, rootHandler)
+	router.Get(routeDocs, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
 		docs.SwaggerUIHandler(responseWriter, httpRequest)
 	})
-	router.Get("/swagger-ui/*", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+	router.Get(routeSwagger, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
 		docs.SwaggerUIHandler(responseWriter, httpRequest)
 	})
 
@@ -75,57 +106,62 @@ func main() {
 		}
 
 		// BFF routes - map public endpoints to internal FastAPI endpoints
-		subRouter.Get("/recipes", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
-			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, RECIPES_ROUTE)
+		subRouter.Get(routeRecipes, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalRecipesPath)
 		})
-		subRouter.Post("/recipes", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
-			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, RECIPES_ROUTE)
+		subRouter.Post(routeRecipes, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalRecipesPath)
 		})
-		subRouter.Get("/recipes/{id}", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+		subRouter.Get(routeRecipesID, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
 			id := chi.URLParam(httpRequest, "id")
-			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, RECIPES_ROUTE+id)
+			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalRecipesPath+"/"+id)
 		})
-		subRouter.Put("/recipes/{id}", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+		subRouter.Put(routeRecipesID, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
 			id := chi.URLParam(httpRequest, "id")
-			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, RECIPES_ROUTE+id)
+			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalRecipesPath+"/"+id)
 		})
-		subRouter.Delete("/recipes/{id}", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+		subRouter.Delete(routeRecipesID, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
 			id := chi.URLParam(httpRequest, "id")
-			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, RECIPES_ROUTE+id)
+			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalRecipesPath+"/"+id)
 		})
-		subRouter.Post("/recipes/{id}/ingredients", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+		subRouter.Post(routeRecipesIngredients, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
 			id := chi.URLParam(httpRequest, "id")
-			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, RECIPES_ROUTE+id+"/ingredients")
+			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalRecipesPath+"/"+id+"/ingredients")
 		})
-		subRouter.Delete("/recipes/{id}/ingredients/{ingredient_id}", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+		subRouter.Put(routeRecipesIngredient, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
 			id := chi.URLParam(httpRequest, "id")
 			ingredientID := chi.URLParam(httpRequest, "ingredient_id")
-			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, RECIPES_ROUTE+id+"/ingredients/"+ingredientID)
+			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalRecipesPath+"/"+id+"/ingredients/"+ingredientID)
+		})
+		subRouter.Delete(routeRecipesIngredient, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+			id := chi.URLParam(httpRequest, "id")
+			ingredientID := chi.URLParam(httpRequest, "ingredient_id")
+			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalRecipesPath+"/"+id+"/ingredients/"+ingredientID)
 		})
 
 		// USDA endpoints
-		subRouter.Get("/usda/food/{fdc_id}", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+		subRouter.Get(routeUsdaFood, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
 			fdcID := chi.URLParam(httpRequest, "fdc_id")
-			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, USDA_ROUTE+"food/"+fdcID)
+			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalUsdaPath+"/food/"+fdcID)
 		})
-		subRouter.Post("/usda/foods", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
-			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, USDA_ROUTE+"foods")
+		subRouter.Post(routeUsdaFoods, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalUsdaPath+"/foods")
 		})
-		subRouter.Post("/usda/foods/list", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
-			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, USDA_ROUTE+"foods/list")
+		subRouter.Post(routeUsdaFoodsList, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalUsdaPath+"/foods/list")
 		})
-		subRouter.Post("/usda/search", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
-			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, USDA_ROUTE+"search")
+		subRouter.Post(routeUsdaSearch, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalUsdaPath+"/search")
 		})
-		subRouter.Post("/usda/search/advanced", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
-			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, USDA_ROUTE+"search/advanced")
+		subRouter.Post(routeUsdaSearchAdvanced, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalUsdaPath+"/search/advanced")
 		})
-		subRouter.Get("/usda/search-ingredients", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
-			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, USDA_ROUTE+"search-ingredients")
+		subRouter.Get(routeUsdaSearchIngredients, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalUsdaPath+"/search-ingredients")
 		})
-		subRouter.Get("/usda/ingredient/{fdc_id}", func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
+		subRouter.Get(routeUsdaIngredient, func(responseWriter http.ResponseWriter, httpRequest *http.Request) {
 			fdcID := chi.URLParam(httpRequest, "fdc_id")
-			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, USDA_ROUTE+"ingredient/"+fdcID)
+			proxy.ProxyToInternal(reverseProxy, responseWriter, httpRequest, internalUsdaPath+"/ingredient/"+fdcID)
 		})
 	}) // End protected routes group
 
@@ -133,10 +169,10 @@ func main() {
 	server := &http.Server{
 		Addr:           fmt.Sprintf(":%d", configuration.Port),
 		Handler:        router,
-		ReadTimeout:    15 * time.Second,
-		WriteTimeout:   15 * time.Second,
-		IdleTimeout:    60 * time.Second,
-		MaxHeaderBytes: 1 << 20, // 1 MB
+		ReadTimeout:    serverReadTimeout,
+		WriteTimeout:   serverWriteTimeout,
+		IdleTimeout:    serverIdleTimeout,
+		MaxHeaderBytes: serverMaxHeaderBytes,
 	}
 
 	// Graceful shutdown channel
@@ -157,7 +193,7 @@ func main() {
 	<-stop
 
 	fmt.Println("\nShutting down server...")
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), serverShutdownTimeout)
 	defer cancel()
 
 	serverShutdownError := server.Shutdown(ctx)

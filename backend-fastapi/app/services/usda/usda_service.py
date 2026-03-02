@@ -75,7 +75,14 @@ class USDAService:
         for fdc_id in criteria.fdc_ids:
             cached = await cache_service.get_ingredient(fdc_id)
             if cached is not None:
-                cached_ingredients.append(cached)
+                # Re-fetch if cached entry is abridged (from search, not a full /foods fetch).
+                # Full-format responses are marked with _keto_full_fetched=True when cached.
+                is_stale = not cached.get("_keto_full_fetched", False)
+                if is_stale:
+                    logger.info(f"[FOODS] Cache hit for fdcId={fdc_id} but missing full data — re-fetching")
+                    missing_fdc_ids.append(fdc_id)
+                else:
+                    cached_ingredients.append(cached)
             else:
                 missing_fdc_ids.append(fdc_id)
 
@@ -98,12 +105,13 @@ class USDAService:
 
             foods: list[dict[Any, Any]] = response.json()
             for food in foods:
+                food["_keto_full_fetched"] = True
                 await cache_service.set_ingredient(food)
 
             return foods
 
     @handle_usda_errors
-    async def search_by_criteria(self, criteria: FoodsByCriteria, url: str | None = None, include_brands: bool = False) -> list[dict]:
+    async def search_by_criteria(self, criteria: FoodsByCriteria, url: str | None = None) -> list[dict]:
         """
         Search for ingredients with query-cache-first strategy.
 

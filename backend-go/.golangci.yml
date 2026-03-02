@@ -1,0 +1,84 @@
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    # Correctness
+    - errcheck      # unhandled errors
+    - govet         # go vet checks
+    - staticcheck   # comprehensive static analysis
+    - gosimple      # code simplification suggestions
+    - ineffassign   # ineffectual assignments
+    - unused        # unused code/exports
+    - bodyclose     # HTTP response body must be closed
+    - noctx         # HTTP requests must use context
+    - nilerr        # returning nil on error path
+    - nilnil        # returning (nil, nil) from functions
+
+    # Formatting & style
+    - gofmt         # standard Go formatting
+    - goimports     # import organization
+    - misspell      # spell check in comments/strings
+    - revive        # comprehensive style linter (golint successor)
+    - gocritic      # additional best practices
+
+    # Performance
+    - prealloc      # suggest preallocating slices
+
+    # Security
+    - gosec         # security checks
+
+    # Unused params / dead code
+    - unparam       # unused function parameters
+
+linters-settings:
+  goimports:
+    local-prefixes: keto-api
+
+  revive:
+    rules:
+      - name: exported
+      - name: var-naming
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: if-return
+      - name: increment-decrement
+      - name: var-declaration
+      - name: range
+      - name: receiver-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+      - name: unreachable-code
+      - name: redefines-builtin-id
+
+  gosec:
+    excludes:
+      - G104  # unhandled errors in defer — covered by errcheck
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - commentedOutCode  # too noisy during development
+
+  misspell:
+    locale: US
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec
+        - unparam
+        - errcheck
+  max-issues-per-linter: 50
+  max-same-issues: 10
