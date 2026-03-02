@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSearchMutation } from "@/store/api/usdaApi";
-import type { USDAFood, USDASearchRequest } from "@/store/api/usdaApi";
+import { useSearchMutation, type USDAFood, type USDASearchRequest } from "@/store/api/usdaApi";
 
 const DATA_TYPES: Record<string, string[]> = {
   "Produce/Meat": ["Foundation", "SR Legacy"],
@@ -29,8 +28,7 @@ export function IngredientSearch({
   const [error, setError] = useState("");
 
   const isCommercial =
-    JSON.stringify(dataType) ===
-    JSON.stringify(DATA_TYPES["Commercial Product"]);
+    JSON.stringify(dataType) === JSON.stringify(DATA_TYPES["Commercial Product"]);
 
   const handleSearch = async () => {
     if (!query.trim()) {
@@ -41,7 +39,7 @@ export function IngredientSearch({
     const request: USDASearchRequest = {
       query,
       dataType: dataType ?? ALL_DATA_TYPES,
-      ...(brandOwner.length > 0 && {brandOwner})
+      ...(brandOwner.length > 0 && { brandOwner }),
     };
 
     try {
@@ -56,7 +54,6 @@ export function IngredientSearch({
     onSelect(food);
     setQuery("");
     setBrandOwner("");
-    setDataType(null);
     setResults([]);
     setError("");
   };
@@ -140,9 +137,7 @@ export function IngredientSearch({
             >
               <div className="font-medium">{food.description}</div>
               {food.brandOwner && (
-                <div className="text-sm text-gray-500">
-                  Brand: {food.brandOwner}
-                </div>
+                <div className="text-sm text-gray-500">Brand: {food.brandOwner}</div>
               )}
             </button>
           ))}

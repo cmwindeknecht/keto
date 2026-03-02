@@ -1,5 +1,5 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { USDAFood } from "../api/usdaApi";
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import type { USDAFood } from "../api/usdaApi";
 
 export type UnitType = "g" | "oz" | "lb";
 

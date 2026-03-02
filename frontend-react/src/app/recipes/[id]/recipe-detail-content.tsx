@@ -10,17 +10,16 @@ import {
   useAddIngredientMutation,
   useUpdateIngredientMutation,
   useRemoveIngredientMutation,
+  type RecipeIngredient,
+  type NutrientInfo,
+  type Nutrient,
 } from "@/store/api/recipesApi";
+import { useGetFoodDetailsMutation, type USDAFood, type FoodPortion } from "@/store/api/usdaApi";
 import { IngredientSearch } from "@/components/IngredientSearch";
 import { QuantityInput } from "@/components/QuantityInput";
 import { NutrientTable } from "@/components/NutrientTable";
 import { formatAllUnits } from "@/lib/units";
-import type {
-  RecipeIngredient,
-  NutrientInfo,
-  Nutrient,
-} from "@/store/api/recipesApi";
-import type { USDAFood } from "@/store/api/usdaApi";
+import { buildPortions, portionLabel } from "@/lib/portions";
 
 const NUTRIENT_NAME_TO_ID: Record<string, number> = {
   Energy: 1008,
@@ -49,11 +48,10 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
   const { data: recipe, isLoading, error } = useGetRecipeQuery(id);
   const [updateRecipe, { isLoading: isUpdating }] = useUpdateRecipeMutation();
   const [deleteRecipe, { isLoading: isDeleting }] = useDeleteRecipeMutation();
-  const [addIngredient, { isLoading: isAddingIngredient }] =
-    useAddIngredientMutation();
+  const [addIngredient, { isLoading: isAddingIngredient }] = useAddIngredientMutation();
   const [updateIngredient] = useUpdateIngredientMutation();
-  const [removeIngredient, { isLoading: isRemovingIngredient }] =
-    useRemoveIngredientMutation();
+  const [removeIngredient, { isLoading: isRemovingIngredient }] = useRemoveIngredientMutation();
+  const [getFoodDetails] = useGetFoodDetailsMutation();
 
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({
@@ -62,16 +60,16 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
     description: recipe?.description || "",
   });
   const [showAddIngredient, setShowAddIngredient] = useState(false);
-  const [selectedUSDAFood, setSelectedUSDAFood] = useState<USDAFood | null>(
-    null,
-  );
+  const [selectedUSDAFood, setSelectedUSDAFood] = useState<USDAFood | null>(null);
   const [ingredientQuantity, setIngredientQuantity] = useState(100);
+  const [addPortions, setAddPortions] = useState<FoodPortion[]>([]);
+  const [addActivePortion, setAddActivePortion] = useState<FoodPortion | null>(null);
 
   // Inline quantity editing
-  const [editingIngredientId, setEditingIngredientId] = useState<string | null>(
-    null,
-  );
+  const [editingIngredientId, setEditingIngredientId] = useState<string | null>(null);
   const [editingQuantity, setEditingQuantity] = useState(0);
+  const [editingPortions, setEditingPortions] = useState<FoodPortion[]>([]);
+  const [editingActivePortion, setEditingActivePortion] = useState<FoodPortion | null>(null);
 
   const handleUpdateRecipe = async () => {
     try {
@@ -112,15 +110,27 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
       }).unwrap();
       setSelectedUSDAFood(null);
       setIngredientQuantity(100);
+      setAddPortions([]);
+      setAddActivePortion(null);
       setShowAddIngredient(false);
     } catch (err) {
       console.error("Error adding ingredient:", err);
     }
   };
 
-  const handleStartEditQuantity = (ingredient: RecipeIngredient) => {
+  const handleStartEditQuantity = async (ingredient: RecipeIngredient) => {
     setEditingIngredientId(ingredient.id);
     setEditingQuantity(ingredient.quantity_grams);
+    setEditingPortions([]);
+    setEditingActivePortion(null);
+    try {
+      const results = await getFoodDetails({
+        fdcIds: [ingredient.ingredient.usda_fdc_id],
+      }).unwrap();
+      if (results.length > 0) setEditingPortions(buildPortions(results[0]));
+    } catch {
+      // Portions are supplemental
+    }
   };
 
   const handleSaveQuantity = async (ingredient: RecipeIngredient) => {
@@ -149,23 +159,15 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
     }
   };
 
-  if (isLoading)
-    return <div className="text-center py-8">Loading recipe...</div>;
+  if (isLoading) return <div className="text-center py-8">Loading recipe...</div>;
   if (error || !recipe)
-    return (
-      <div className="text-center py-8 text-red-600">Recipe not found</div>
-    );
+    return <div className="text-center py-8 text-red-600">Recipe not found</div>;
 
-  const aggregateNutrients: Nutrient[] = (recipe.nutrients ?? []).map(
-    toNutrient,
-  );
+  const aggregateNutrients: Nutrient[] = (recipe.nutrients ?? []).map(toNutrient);
 
   return (
     <div>
-      <Link
-        href="/recipes"
-        className="text-blue-600 hover:underline mb-4 inline-block"
-      >
+      <Link href="/recipes" className="text-blue-600 hover:underline mb-4 inline-block">
         ← Back to Recipes
       </Link>
 
@@ -173,37 +175,37 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
         {editMode ? (
           <div className="space-y-4">
             <div>
-              <label htmlFor="edit-name" className="block text-sm font-medium mb-1">Name</label>
+              <label htmlFor="edit-name" className="block text-sm font-medium mb-1">
+                Name
+              </label>
               <input
                 id="edit-name"
                 type="text"
                 value={editData.name}
-                onChange={(e) =>
-                  setEditData({ ...editData, name: e.target.value })
-                }
+                onChange={(e) => setEditData({ ...editData, name: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
               />
             </div>
             <div>
-              <label htmlFor="edit-cuisine" className="block text-sm font-medium mb-1">Cuisine</label>
+              <label htmlFor="edit-cuisine" className="block text-sm font-medium mb-1">
+                Cuisine
+              </label>
               <input
                 id="edit-cuisine"
                 type="text"
                 value={editData.cuisine}
-                onChange={(e) =>
-                  setEditData({ ...editData, cuisine: e.target.value })
-                }
+                onChange={(e) => setEditData({ ...editData, cuisine: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
               />
             </div>
             <div>
-              <label htmlFor="edit-description" className="block text-sm font-medium mb-1">Description</label>
+              <label htmlFor="edit-description" className="block text-sm font-medium mb-1">
+                Description
+              </label>
               <textarea
                 id="edit-description"
                 value={editData.description}
-                onChange={(e) =>
-                  setEditData({ ...editData, description: e.target.value })
-                }
+                onChange={(e) => setEditData({ ...editData, description: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
               />
             </div>
@@ -228,12 +230,8 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
             <div className="flex justify-between items-start">
               <div>
                 <h1 className="text-4xl font-bold">{recipe.name}</h1>
-                {recipe.cuisine && (
-                  <p className="text-gray-600 text-lg">{recipe.cuisine}</p>
-                )}
-                {recipe.description && (
-                  <p className="text-gray-700 mt-2">{recipe.description}</p>
-                )}
+                {recipe.cuisine && <p className="text-gray-600 text-lg">{recipe.cuisine}</p>}
+                {recipe.description && <p className="text-gray-700 mt-2">{recipe.description}</p>}
               </div>
               <div className="flex gap-2">
                 <button
@@ -289,9 +287,7 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
             {selectedUSDAFood ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                  <span className="font-medium">
-                    {selectedUSDAFood.description}
-                  </span>
+                  <span className="font-medium">{selectedUSDAFood.description}</span>
                   <button
                     onClick={() => setSelectedUSDAFood(null)}
                     className="text-sm text-blue-600 hover:underline"
@@ -300,12 +296,48 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
                   </button>
                 </div>
                 <div>
-                  <label htmlFor="ingredient-quantity" className="block text-sm font-medium mb-1">Quantity</label>
+                  {addPortions.length > 0 && (
+                    <div className="mb-2">
+                      <label
+                        htmlFor="add-portion-select"
+                        className="block text-sm font-medium mb-1"
+                      >
+                        Serving size
+                      </label>
+                      <select
+                        id="add-portion-select"
+                        defaultValue="-1"
+                        onChange={(e) => {
+                          const idx = Number.parseInt(e.target.value);
+                          if (idx >= 0) {
+                            const portion = addPortions[idx];
+                            setAddActivePortion(portion);
+                            setIngredientQuantity(portion.gramWeight ?? 100);
+                          } else {
+                            setAddActivePortion(null);
+                          }
+                        }}
+                        className="px-3 py-2 border rounded-lg text-sm"
+                      >
+                        <option value="-1">Custom</option>
+                        {addPortions.map((p, i) => (
+                          <option key={p.id ?? i} value={i}>
+                            {portionLabel(p)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <label htmlFor="ingredient-quantity" className="block text-sm font-medium mb-1">
+                    Quantity
+                  </label>
                   <QuantityInput
                     inputId="ingredient-quantity"
                     value={ingredientQuantity}
                     onChange={setIngredientQuantity}
                     inputClassName="w-28 px-3 py-2 border rounded-lg text-sm"
+                    servingGrams={addActivePortion?.gramWeight}
+                    servingLabel={addActivePortion ? portionLabel(addActivePortion) : undefined}
                   />
                 </div>
                 <button
@@ -318,9 +350,17 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
               </div>
             ) : (
               <IngredientSearch
-                onSelect={(food) => {
+                onSelect={async (food) => {
                   setSelectedUSDAFood(food);
                   setIngredientQuantity(100);
+                  setAddPortions([]);
+                  setAddActivePortion(null);
+                  try {
+                    const results = await getFoodDetails({ fdcIds: [food.fdcId] }).unwrap();
+                    if (results.length > 0) setAddPortions(buildPortions(results[0]));
+                  } catch {
+                    // Portions are supplemental
+                  }
                 }}
                 placeholder="Search USDA for an ingredient..."
               />
@@ -344,9 +384,36 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
                   <div className="flex items-center gap-2">
                     {editingIngredientId === ingredient.id ? (
                       <>
+                        {editingPortions.length > 0 && (
+                          <select
+                            defaultValue="-1"
+                            onChange={(e) => {
+                              const idx = Number.parseInt(e.target.value);
+                              if (idx >= 0) {
+                                const portion = editingPortions[idx];
+                                setEditingActivePortion(portion);
+                                setEditingQuantity(portion.gramWeight ?? 100);
+                              } else {
+                                setEditingActivePortion(null);
+                              }
+                            }}
+                            className="px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="-1">Custom</option>
+                            {editingPortions.map((p, i) => (
+                              <option key={p.id ?? i} value={i}>
+                                {portionLabel(p)}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                         <QuantityInput
                           value={editingQuantity}
                           onChange={setEditingQuantity}
+                          servingGrams={editingActivePortion?.gramWeight}
+                          servingLabel={
+                            editingActivePortion ? portionLabel(editingActivePortion) : undefined
+                          }
                         />
                         <button
                           onClick={() => handleSaveQuantity(ingredient)}
@@ -363,9 +430,7 @@ export function RecipeDetailContent({ id }: RecipeDetailContentProps) {
                       </>
                     ) : (
                       <>
-                        <span
-                          className="text-gray-500 text-sm cursor-pointer hover:text-blue-600"
-                        >
+                        <span className="text-gray-500 text-sm cursor-pointer hover:text-blue-600">
                           {formatAllUnits(ingredient.quantity_grams)}
                         </span>
                         <button

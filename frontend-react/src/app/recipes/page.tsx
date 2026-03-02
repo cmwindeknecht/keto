@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useListRecipesQuery, useCreateRecipeMutation } from "@/store/api/recipesApi";
+import { useListRecipesQuery, useCreateRecipeMutation, type Recipe } from "@/store/api/recipesApi";
+import { useGetFoodDetailsMutation, type USDAFood, type FoodPortion } from "@/store/api/usdaApi";
 import { IngredientSearch } from "@/components/IngredientSearch";
 import { QuantityInput } from "@/components/QuantityInput";
-import type { Recipe } from "@/store/api/recipesApi";
-import type { USDAFood } from "@/store/api/usdaApi";
+import { buildPortions, portionLabel } from "@/lib/portions";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +38,7 @@ export default function RecipesPage() {
   const router = useRouter();
   const { data: recipes = [], isLoading, error } = useListRecipesQuery();
   const [createRecipe, { isLoading: isCreating }] = useCreateRecipeMutation();
+  const [getFoodDetails] = useGetFoodDetailsMutation();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -47,6 +48,10 @@ export default function RecipesPage() {
     description: "",
   });
   const [ingredients, setIngredients] = useState<IngredientEntry[]>([]);
+  const [ingredientPortions, setIngredientPortions] = useState<Record<number, FoodPortion[]>>({});
+  const [activePortionPerIngredient, setActivePortionPerIngredient] = useState<
+    Record<number, FoodPortion | null>
+  >({});
 
   const filteredRecipes = recipes.filter(
     (recipe) =>
@@ -54,12 +59,23 @@ export default function RecipesPage() {
       (recipe.cuisine?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
   );
 
-  const handleAddIngredient = (food: USDAFood) => {
+  const handleAddIngredient = async (food: USDAFood) => {
     if (ingredients.some((i) => i.fdcId === food.fdcId)) return;
-    setIngredients([
-      ...ingredients,
+    setIngredients((prev) => [
+      ...prev,
       { fdcId: food.fdcId, description: food.description, quantity_grams: 100 },
     ]);
+    try {
+      const results = await getFoodDetails({ fdcIds: [food.fdcId] }).unwrap();
+      if (results.length > 0) {
+        const portions = buildPortions(results[0]);
+        if (portions.length > 0) {
+          setIngredientPortions((prev) => ({ ...prev, [food.fdcId]: portions }));
+        }
+      }
+    } catch {
+      // Portions are supplemental
+    }
   };
 
   const handleRemoveIngredient = (fdcId: number) => {
@@ -70,8 +86,7 @@ export default function RecipesPage() {
     setIngredients(ingredients.map((i) => (i.fdcId === fdcId ? { ...i, quantity_grams } : i)));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (ingredients.length === 0) {
       alert("Add at least one ingredient.");
       return;
@@ -110,10 +125,13 @@ export default function RecipesPage() {
       {showForm && (
         <div className="bg-white p-6 rounded-lg shadow-md mb-6">
           <h2 className="text-2xl font-semibold mb-4">New Recipe</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Name *</label>
+              <label htmlFor="recipe-name" className="block text-sm font-medium mb-1">
+                Name *
+              </label>
               <input
+                id="recipe-name"
                 type="text"
                 required
                 value={formData.name}
@@ -122,8 +140,11 @@ export default function RecipesPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Cuisine *</label>
+              <label htmlFor="recipe-cuisine" className="block text-sm font-medium mb-1">
+                Cuisine *
+              </label>
               <select
+                id="recipe-cuisine"
                 required
                 value={formData.cuisine}
                 onChange={(e) => setFormData({ ...formData, cuisine: e.target.value })}
@@ -137,8 +158,11 @@ export default function RecipesPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Description</label>
+              <label htmlFor="recipe-description" className="block text-sm font-medium mb-1">
+                Description
+              </label>
               <textarea
+                id="recipe-description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
@@ -146,7 +170,7 @@ export default function RecipesPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Ingredients</label>
+              <p className="block text-sm font-medium mb-2">Ingredients</p>
               <IngredientSearch
                 onSelect={handleAddIngredient}
                 placeholder="Search USDA for an ingredient..."
@@ -160,9 +184,44 @@ export default function RecipesPage() {
                       className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg"
                     >
                       <span className="flex-1 text-sm">{ing.description}</span>
+                      {ingredientPortions[ing.fdcId] && (
+                        <select
+                          defaultValue="-1"
+                          onChange={(e) => {
+                            const idx = Number.parseInt(e.target.value);
+                            if (idx >= 0) {
+                              const portion = ingredientPortions[ing.fdcId][idx];
+                              setActivePortionPerIngredient((prev) => ({
+                                ...prev,
+                                [ing.fdcId]: portion,
+                              }));
+                              handleQuantityChange(ing.fdcId, portion.gramWeight ?? 100);
+                            } else {
+                              setActivePortionPerIngredient((prev) => ({
+                                ...prev,
+                                [ing.fdcId]: null,
+                              }));
+                            }
+                          }}
+                          className="px-2 py-1 border rounded text-xs"
+                        >
+                          <option value="-1">Custom</option>
+                          {ingredientPortions[ing.fdcId].map((p, i) => (
+                            <option key={p.id ?? i} value={i}>
+                              {portionLabel(p)}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                       <QuantityInput
                         value={ing.quantity_grams}
                         onChange={(grams) => handleQuantityChange(ing.fdcId, grams)}
+                        servingGrams={activePortionPerIngredient[ing.fdcId]?.gramWeight}
+                        servingLabel={
+                          activePortionPerIngredient[ing.fdcId]
+                            ? portionLabel(activePortionPerIngredient[ing.fdcId]!)
+                            : undefined
+                        }
                       />
                       <button
                         type="button"
@@ -178,7 +237,8 @@ export default function RecipesPage() {
             </div>
 
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               disabled={isCreating}
               className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
             >

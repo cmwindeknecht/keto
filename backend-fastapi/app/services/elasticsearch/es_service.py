@@ -59,7 +59,11 @@ class ElasticsearchService:
         try:
             exists = await self._client.indices.exists(index=self.INDEX_NAME)
             if not exists:
-                await self._client.indices.create(index=self.INDEX_NAME, **self.INDEX_MAPPING)
+                await self._client.indices.create(
+                    index=self.INDEX_NAME,
+                    mappings=self.INDEX_MAPPING["mappings"],
+                    settings=self.INDEX_MAPPING["settings"],
+                )
                 logger.info(f"Created Elasticsearch index: {self.INDEX_NAME}")
             else:
                 logger.info(f"Elasticsearch index already exists: {self.INDEX_NAME}")
@@ -95,7 +99,7 @@ class ElasticsearchService:
                 }
             }
 
-            response = await self._client.search(index=self.INDEX_NAME, query=search_query, size=limit, source=["fdc_id", "name", "data_type"])
+            response = await self._client.search(index=self.INDEX_NAME, query=search_query, size=limit, source=["fdc_id", "name", "data_type"])  # type: ignore[call-arg]
 
             results = []
             for hit in response["hits"]["hits"]:

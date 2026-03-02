@@ -119,7 +119,7 @@ class RecipeService:
             if recipe_data.name is not None:
                 recipe.name = recipe_data.name  # type: ignore[assignment]
             if recipe_data.cuisine is not None:
-                recipe.cuisine = recipe_data.cuisine  # type: ignore[assignment]
+                recipe.cuisine = recipe_data.cuisine
             if recipe_data.description is not None:
                 recipe.description = recipe_data.description  # type: ignore[assignment]
 

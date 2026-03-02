@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Optional
 
-from aiokafka import AIOKafkaProducer
+from aiokafka import AIOKafkaProducer  # type: ignore[import-untyped]
 from pydantic import BaseModel
 
 from app.core.config import settings

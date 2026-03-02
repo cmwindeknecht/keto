@@ -2,29 +2,30 @@
 
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { USDASearchRequest, useSearchMutation } from "@/store/api/usdaApi";
-
-export const dynamic = "force-dynamic";
+import {
+  useSearchMutation,
+  useGetFoodDetailsMutation,
+  type USDASearchRequest,
+  type FoodPortion,
+} from "@/store/api/usdaApi";
+import { buildPortions, portionLabel } from "@/lib/portions";
 import {
   selectFood,
   setQuantity,
   setUnit,
   clearSelection,
+  type UnitType,
 } from "@/store/slices/lookupSlice";
 import { NutrientTable } from "@/components/NutrientTable";
+import { QuantityInput } from "@/components/QuantityInput";
 import type { RootState } from "@/store";
-import type { UnitType } from "@/store/slices/lookupSlice";
 
-const UNIT_CONVERSIONS: Record<UnitType, number> = {
-  g: 1,
-  oz: 28.3495,
-  lb: 453.592,
-};
+export const dynamic = "force-dynamic";
 
 enum DATA_TYPE {
   PRODUCE_MEAT = "Produce/Meat",
-  COMMERCIAL_PRODUCT = "Commerical Product",  // 1
-  MEAL = "Meal"
+  COMMERCIAL_PRODUCT = "Commerical Product", // 1
+  MEAL = "Meal",
 }
 
 const DATA_TYPES: Record<string, string[]> = {
@@ -35,29 +36,30 @@ const DATA_TYPES: Record<string, string[]> = {
 
 export default function LookupPage() {
   const dispatch = useDispatch();
-  const { selectedFood, quantity, unit } = useSelector(
-    (state: RootState) => state.lookup,
-  );
+  const { selectedFood, quantity, unit } = useSelector((state: RootState) => state.lookup);
   const [searchUSDA, { isLoading: isSearching }] = useSearchMutation();
+  const [getFoodDetails] = useGetFoodDetailsMutation();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [dataType, setDataType] = useState<string[] | null>(null);
   const [brandOwner, setBrandOwner] = useState("");
   const [foodSearchError, setFoodSearchError] = useState("");
+  const [portions, setPortions] = useState<FoodPortion[]>([]);
+  const [activePortion, setActivePortion] = useState<FoodPortion | null>(null);
 
   useEffect(() => {
-      setFoodSearchError("");
+    setFoodSearchError("");
   }, [searchQuery, dataType, brandOwner]);
 
   useEffect(() => {
     setSearchResults([]);
     setSearchQuery("");
     setBrandOwner("");
-  }, [dataType])
+  }, [dataType]);
 
   const handleSearch = async () => {
     try {
-      if (searchQuery.length == 0) {
+      if (searchQuery.length === 0) {
         setFoodSearchError("Search is empty, please search for a value");
         return;
       }
@@ -76,20 +78,19 @@ export default function LookupPage() {
     }
   };
 
-  const handleSelectFood = (food: any) => {
+  const handleSelectFood = async (food: any) => {
     dispatch(selectFood(food));
     setSearchResults([]);
     setSearchQuery("");
     setBrandOwner("");
-    setDataType(null);
-  };
-
-  const handleQuantityChange = (newQuantity: number) => {
-    dispatch(setQuantity(newQuantity));
-  };
-
-  const handleUnitChange = (newUnit: UnitType) => {
-    dispatch(setUnit(newUnit));
+    setPortions([]);
+    setActivePortion(null);
+    try {
+      const results = await getFoodDetails({ fdcIds: [food.fdcId] }).unwrap();
+      if (results.length > 0) setPortions(buildPortions(results[0]));
+    } catch {
+      // Portions are supplemental — silently fail
+    }
   };
 
   const handleClearSelection = () => {
@@ -98,10 +99,12 @@ export default function LookupPage() {
     setSearchQuery("");
     setBrandOwner("");
     setDataType(null);
+    setPortions([]);
+    setActivePortion(null);
   };
 
-  // Convert quantity to grams
-  const quantityInGrams = quantity * UNIT_CONVERSIONS[unit];
+  // Convert quantity to grams (quantity is always stored as grams when dispatched from QuantityInput)
+  const quantityInGrams = quantity * (unit === "g" ? 1 : unit === "oz" ? 28.3495 : 453.592);
 
   return (
     <div>
@@ -122,9 +125,10 @@ export default function LookupPage() {
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               className="flex-1 px-4 py-2 border rounded-lg"
             />
-            {JSON.stringify(dataType) === JSON.stringify(DATA_TYPES[DATA_TYPE.COMMERCIAL_PRODUCT]) && (
+            {JSON.stringify(dataType) ===
+              JSON.stringify(DATA_TYPES[DATA_TYPE.COMMERCIAL_PRODUCT]) && (
               <input
-                id="food-search"
+                id="brand-search"
                 type="text"
                 placeholder="Search Brand (e.g., Frank's RedHot, Mission)"
                 value={brandOwner}
@@ -148,20 +152,15 @@ export default function LookupPage() {
           {/* Data Type Radio Buttons */}
           <div className="flex flex-row gap-4">
             {Object.entries(DATA_TYPES).map(([readableType, usdaType]) => (
-              <label
-                key={readableType}
-                className="flex items-center gap-1 cursor-pointer"
-              >
+              <label key={readableType} className="flex items-center gap-1 cursor-pointer">
                 <input
                   type="radio"
                   name="dataType"
                   value={usdaType}
-                  checked={
-                    JSON.stringify(dataType) === JSON.stringify(usdaType)
-                  }
+                  checked={JSON.stringify(dataType) === JSON.stringify(usdaType)}
                   onChange={() => setDataType(usdaType)}
                 />{" "}
-                {readableType}
+                <span>{readableType}</span>
               </label>
             ))}
             <label className="flex items-center gap-1 cursor-pointer">
@@ -172,12 +171,10 @@ export default function LookupPage() {
                 checked={dataType === null}
                 onChange={() => setDataType(null)}
               />{" "}
-              Any
+              <span>Any</span>
             </label>
             {foodSearchError.length > 0 && (
-                  <div className="text-sm text-red-600">
-                    {foodSearchError}
-                  </div>
+              <div className="text-sm text-red-600">{foodSearchError}</div>
             )}
           </div>
         </div>
@@ -207,52 +204,64 @@ export default function LookupPage() {
         <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h2 className="text-2xl font-semibold">
-                {selectedFood.description}
-              </h2>
+              <h2 className="text-2xl font-semibold">{selectedFood.description}</h2>
               {selectedFood.brandOwner && (
                 <p className="text-gray-600">Brand: {selectedFood.brandOwner}</p>
               )}
             </div>
-            <button
-              onClick={handleClearSelection}
-              className="text-gray-600 hover:text-gray-900"
-            >
+            <button onClick={handleClearSelection} className="text-gray-600 hover:text-gray-900">
               ✕
             </button>
           </div>
 
           <div className="bg-gray-50 p-4 rounded-lg mb-6">
-            <label
-              htmlFor="quantity-input"
-              className="block text-sm font-medium mb-3"
-            >
+            {portions.length > 0 && (
+              <div className="mb-3">
+                <label htmlFor="portion-select" className="block text-sm font-medium mb-1">
+                  Serving size
+                </label>
+                <select
+                  id="portion-select"
+                  defaultValue="-1"
+                  onChange={(e) => {
+                    const idx = Number.parseInt(e.target.value);
+                    if (idx >= 0) {
+                      const portion = portions[idx];
+                      setActivePortion(portion);
+                      dispatch(setQuantity(portion.gramWeight ?? 100));
+                      dispatch(setUnit("g"));
+                    } else {
+                      setActivePortion(null);
+                    }
+                  }}
+                  className="px-3 py-2 border rounded-lg text-sm"
+                >
+                  <option value="-1">Custom</option>
+                  {portions.map((p, i) => (
+                    <option key={p.id ?? i} value={i}>
+                      {portionLabel(p)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <label htmlFor="quantity-input" className="block text-sm font-medium mb-3">
               Amount
             </label>
-            <div className="flex gap-2">
-              <input
-                id="quantity-input"
-                type="number"
-                value={quantity}
-                onChange={(e) =>
-                  handleQuantityChange(Number.parseFloat(e.target.value))
-                }
-                className="flex-1 px-4 py-2 border rounded-lg"
-                step="0.1"
-              />
-              <select
-                value={unit}
-                onChange={(e) => handleUnitChange(e.target.value as UnitType)}
-                className="px-4 py-2 border rounded-lg"
-              >
-                <option value="g">grams (g)</option>
-                <option value="oz">ounces (oz)</option>
-                <option value="lb">pounds (lb)</option>
-              </select>
-            </div>
-            <p className="text-sm text-gray-600 mt-2">
-              {quantityInGrams.toFixed(1)}g
-            </p>
+            <QuantityInput
+              inputId="quantity-input"
+              value={quantityInGrams}
+              onChange={(g) => {
+                dispatch(setQuantity(g));
+                dispatch(setUnit("g" as UnitType));
+              }}
+              servingGrams={activePortion?.gramWeight}
+              servingLabel={activePortion ? portionLabel(activePortion) : undefined}
+              inputClassName="flex-1 px-4 py-2 border rounded-lg"
+            />
+            {activePortion && (
+              <p className="text-sm text-gray-600 mt-2">{quantityInGrams.toFixed(1)}g</p>
+            )}
           </div>
 
           <NutrientTable

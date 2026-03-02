@@ -15,12 +15,29 @@ export interface USDANutrient {
   readonly unitName: string;
 }
 
+export interface FoodPortion {
+  readonly id?: number;
+  readonly amount?: number;
+  readonly gramWeight?: number;
+  readonly portionDescription?: string;
+  readonly modifier?: string;
+  readonly measureUnit?: {
+    readonly id?: number;
+    readonly name?: string;
+    readonly abbreviation?: string;
+  };
+}
+
 export interface USDAFood {
   readonly fdcId: number;
   readonly description: string;
   readonly dataType?: string;
   readonly brandOwner?: string;
   readonly foodNutrients: USDANutrient[];
+  readonly foodPortions?: FoodPortion[];
+  readonly servingSize?: number;
+  readonly servingSizeUnit?: string;
+  readonly householdServingFullText?: string;
 }
 
 export const usdaApi = baseApi.injectEndpoints({
@@ -32,7 +49,14 @@ export const usdaApi = baseApi.injectEndpoints({
         body,
       }),
     }),
+    getFoodDetails: builder.mutation<USDAFood[], { readonly fdcIds: number[] }>({
+      query: (body) => ({
+        url: "/usda/foods",
+        method: "POST",
+        body,
+      }),
+    }),
   }),
 });
 
-export const { useSearchMutation } = usdaApi;
+export const { useSearchMutation, useGetFoodDetailsMutation } = usdaApi;
